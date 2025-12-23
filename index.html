@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NHMTAL Öğretmen</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a90e2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <h1 id="page-title">Profil</h1>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+
+        <!-- WELCOME SCREEN (First Launch) -->
+        <section id="view-welcome" class="view">
+            <div class="welcome-container">
+                <div class="welcome-header">
+                    <h2>Merhaba Öğretmenim 👋</h2>
+                    <p>NHMTAL Öğretmen uygulamasına hoş geldiniz.</p>
+                </div>
+
+                <form id="setup-form">
+                    <div class="form-group photo-section">
+                        <label>Profil Fotoğrafı</label>
+                        <div class="avatar-selector">
+                            <div class="avatar-option selected" data-avatar="avatar1.png">👨‍🏫</div>
+                            <div class="avatar-option" data-avatar="avatar2.png">👩‍🏫</div>
+                            <div class="avatar-option" data-avatar="avatar3.png">🧑‍🏫</div>
+                            <label class="avatar-upload">
+                                📷
+                                <input type="file" id="photo-upload" accept="image/*" hidden>
+                            </label>
+                        </div>
+                        <div class="photo-preview-container">
+                            <img id="photo-preview" src="" style="display:none;" alt="Seçilen Fotoğraf">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="setup-name">Ad Soyad <span class="required">*</span></label>
+                        <input type="text" id="setup-name" required placeholder="Örn: Ahmet Yılmaz">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="setup-branch">Branş <span class="required">*</span></label>
+                        <input type="text" id="setup-branch" required placeholder="Örn: Bilişim Teknolojileri">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="setup-school">Okul Adı</label>
+                        <input type="text" id="setup-school" value="Nene Hatun MTAL">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="setup-gender">Cinsiyet</label>
+                        <select id="setup-gender">
+                            <option value="">Seçiniz (İsteğe bağlı)</option>
+                            <option value="male">Erkek</option>
+                            <option value="female">Kadın</option>
+                            <option value="none">Belirtmek istemiyorum</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Devam Et</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 1. Öğretmen Profili (Main View) -->
+        <section id="view-profile" class="view">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="profile-image-container">
+                        <span id="profile-avatar-display" class="profile-avatar">👨‍🏫</span>
+                        <img id="profile-img-display" src="" alt="Profil" style="display:none;">
+                    </div>
+                    <h2 id="disp-name">Yükleniyor...</h2>
+                    <p id="disp-branch">Branş bilgisi</p>
+                </div>
+                <div class="profile-details">
+                    <div class="detail-item">
+                        <span class="label">Okul</span>
+                        <span class="value" id="disp-school">...</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Cinsiyet</span>
+                        <span class="value" id="disp-gender">...</span>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Dashboard -->
+                <div class="info-card" style="text-align:center;">
+                    <h3>Hızlı Menü</h3>
+                    <div style="display:flex; gap:10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="fab-btn-mini" id="btn-dash-plans" style="width:auto; flex:1; min-width: 120px;">
+                            <span>📅</span> Planlar
+                        </button>
+                        <button class="fab-btn-mini"
+                            onclick="document.querySelector('[data-target=view-classes]').click()"
+                            style="width:auto; flex:1; min-width: 120px;">
+                            <span>📚</span> Sınıflar
+                        </button>
+                    </div>
+                </div>
+                <button id="btn-edit-profile" class="btn-secondary">Bilgileri Düzenle</button>
+            </div>
+        </section>
+
+        <!-- 2. Sınıflar -->
+        <section id="view-classes" class="view">
+            <div id="class-list" class="class-grid">
+                <!-- Classes will be injected here -->
+                <div class="empty-state">
+                    <p>Henüz hiç sınıf eklenmedi.</p>
+                </div>
+            </div>
+
+            <button id="btn-add-class" class="fab-btn">
+                <span>+</span>
+            </button>
+        </section>
+
+        <!-- 3. Öğrenciler -->
+        <section id="view-students" class="view">
+            <div class="empty-state">
+                <h2>Öğrenciler</h2>
+                <p>Tüm öğrenci listesi ve arama. (Sonraki adım)</p>
+            </div>
+        </section>
+
+        <!-- 4. Mezunlar -->
+        <section id="view-alumni" class="view">
+            <div class="filter-bar">
+                <input type="text" id="alumni-search" placeholder="Mezun ara..." class="search-input">
+                <select id="alumni-year-filter" class="search-input" style="width: auto;">
+                    <option value="">Tüm Yıllar</option>
+                    <!-- Options populated by JS -->
+                </select>
+            </div>
+            <div id="alumni-list" class="student-grid">
+                <!-- Alumni List -->
+                <div class="empty-state">
+                    <p>Henüz mezun öğrenci yok.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Ayarlar -->
+        <section id="view-settings" class="view">
+            <div class="settings-list">
+                <button class="settings-item" id="btn-settings-profile">
+                    <span class="icon">👤</span>
+                    <span class="text">Profilim</span>
+                    <span class="arrow">›</span>
+                </button>
+                <button class="settings-item" id="btn-year-transition">
+                    <span class="icon">📅</span>
+                    <span class="text">Eğitim Yılı İşlemleri</span>
+                    <span class="arrow">›</span>
+                </button>
+                <button class="settings-item" id="btn-settings-theme">
+                    <span class="icon">🎨</span>
+                    <span class="text">Tema Değiştir</span>
+                    <span class="arrow">›</span>
+                </button>
+                <button class="settings-item" id="btn-settings-plans">
+                    <span class="icon">📅</span>
+                    <span class="text">Yıllık ve Haftalık Planlar</span>
+                    <span class="arrow">›</span>
+                </button>
+                <button class="settings-item" id="btn-settings-info">
+                    <span class="icon">ℹ️</span>
+                    <span class="text">Kılavuz ve Hakkında</span>
+                    <span class="arrow">›</span>
+                </button>
+                <button class="settings-item danger" id="btn-reset-data" style="color: #e74c3c;">
+                    <span class="icon">🗑️</span>
+                    <span class="text">Verileri Temizle (Sıfırla)</span>
+                    <span class="arrow">›</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Plans View -->
+    <section id="view-plans" class="view">
+        <div class="sub-header">
+            <button class="btn-back" onclick="navigate('previous')">←</button>
+            <h2>Planlarım</h2>
+            <div style="width: 24px;"></div>
+        </div>
+
+        <div class="student-profile-tabs">
+            <button class="tab-btn active" data-tab="plan-yearly">Yıllık Planlar</button>
+            <button class="tab-btn" data-tab="plan-weekly">Haftalık Program</button>
+        </div>
+
+        <div id="plan-list-container" style="padding-bottom: 80px;">
+            <!-- Plan items will be injected here -->
+            <div class="empty-state-small">Yüklenen plan yok.</div>
+        </div>
+
+        <button class="fab-btn" id="btn-add-plan"
+            style="position:fixed; bottom: 85px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary-color); color: white; font-size: 24px; border:none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">+</button>
+    </section>
+
+    <!-- Info View -->
+    <section id="view-info" class="view">
+        <div class="sub-header">
+            <button class="btn-back" onclick="navigate('previous')">←</button>
+            <h2>Hakkında</h2>
+            <div style="width: 24px;"></div>
+        </div>
+
+        <div class="info-card">
+            <h3>📱 Uygulama Hakkında</h3>
+            <p>NHMTAL Öğretmen Asistanı, öğretmenlerin sınıf ve öğrenci takibini kolaylaştırmak için tasarlanmış,
+                tamamen çevrimdışı (offline) çalışan bir web uygulamasıdır.</p>
+        </div>
+
+        <div class="info-card">
+            <h3>🔒 Veri Gizliliği</h3>
+            <p>Bu uygulama verileri <strong>sadece cihazınızda</strong> (tarayıcı belleği) saklar. Hiçbir sunucuya veri
+                gönderilmez. İnternet bağlantısı olmasa bile çalışır.</p>
+            <br>
+            <p><strong>Önemli:</strong> Tarayıcı geçmişini temizlerseniz verileriniz silinebilir. "Verileri Temizle"
+                seçeneği tüm kayıtları kalıcı olarak siler.</p>
+        </div>
+
+        <div class="info-card">
+            <h3>📄 PDF Çıktı</h3>
+            <p>Öğrenci profillerini PDF olarak kaydedebilir veya yazdırabilirsiniz. "PDF Oluştur" butonuna bastığınızda,
+                cihazınızın yerel yazdırma servisi açılır. Buradan "PDF Olarak Kaydet" seçeneğini kullanabilirsiniz.</p>
+        </div>
+    </section>
+
+    <!-- MODALS -->
+
+    <!-- Year Transition Warning Modal -->
+    <div id="modal-transition" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color:#e74c3c;">⚠️ Yeni Eğitim Yılına Geç</h3>
+            <p style="margin-bottom: 15px; line-height: 1.5;">
+                Yeni eğitim yılına geçmek üzeresiniz.<br>
+                Bu işlem sonucunda:
+            </p>
+            <ul style="margin-bottom: 20px; padding-left: 20px; list-style-type: disc; color: #555;">
+                <li>12. sınıf öğrencileri mezun edilecektir</li>
+                <li>11 → 12</li>
+                <li>10 → 11</li>
+                <li>9 → 10</li>
+                <li>Yeni 9. sınıflar boş olarak oluşturulacaktır</li>
+            </ul>
+            <p style="font-weight: 600; margin-bottom: 20px;">Mevcut veriler silinmez.<br>Devam etmek istiyor musunuz?
+            </p>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-text" id="btn-cancel-transition">Vazgeç</button>
+                <button type="button" class="btn-primary" id="btn-confirm-transition" style="background: #e74c3c;">Devam
+                    Et</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Add/Edit Modal -->
+    <div id="modal-class" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-class-title">Yeni Sınıf Ekle</h3>
+            <form id="form-class">
+                <input type="hidden" id="class-id">
+
+                <div class="form-group">
+                    <label>Sınıf Adı</label>
+                    <input type="text" id="class-name" required placeholder="Örn: 9-A, 11-B">
+                </div>
+
+                <div class="form-group">
+                    <label>Seviye</label>
+                    <div class="chip-selector" id="level-selector">
+                        <div class="chip" data-value="9">9. Sınıf</div>
+                        <div class="chip" data-value="10">10. Sınıf</div>
+                        <div class="chip" data-value="11">11. Sınıf</div>
+                        <div class="chip" data-value="12">12. Sınıf</div>
+                    </div>
+                    <input type="hidden" id="class-level" required>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-close-class-modal">İptal</button>
+                    <button type="submit" class="btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Student Add/Edit Modal -->
+    <div id="modal-student" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <h3 id="modal-student-title">Öğrenci Ekle</h3>
+            <form id="form-student">
+                <input type="hidden" id="student-id">
+                <input type="hidden" id="student-class-id">
+
+                <!-- Photo -->
+                <div class="form-group photo-section centered">
+                    <div class="profile-image-container small" id="student-photo-container">
+                        <span id="student-form-avatar">🎓</span>
+                        <img id="student-form-img" src=""
+                            style="display:none; width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <label class="btn-text" style="color: var(--primary-color);">
+                        📷 Fotoğraf Ekle / Değiştir
+                        <input type="file" id="student-photo-upload" accept="image/*" hidden>
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Öğrenci No <span class="required">*</span></label>
+                        <input type="number" id="student-number" required placeholder="123">
+                    </div>
+                    <div class="form-group">
+                        <label>Ad Soyad <span class="required">*</span></label>
+                        <input type="text" id="student-name" required placeholder="Ad Soyad">
+                    </div>
+                </div>
+
+                <label style="font-weight:600; margin-top:10px; display:block;">Veli Bilgileri (İsteğe bağlı)</label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Anne Adı</label>
+                        <input type="text" id="student-mother-name" placeholder="Anne Adı">
+                    </div>
+                    <div class="form-group">
+                        <label>Anne Tel</label>
+                        <input type="tel" id="student-mother-tel" placeholder="05xxxxxxxxx">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Baba Adı</label>
+                        <input type="text" id="student-father-name" placeholder="Baba Adı">
+                    </div>
+                    <div class="form-group">
+                        <label>Baba Tel</label>
+                        <input type="tel" id="student-father-tel" placeholder="05xxxxxxxxx">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Etiketler</label>
+                    <div class="chip-selector" id="student-tags">
+                        <div class="chip" data-value="success" style="--chip-color: #2ecc71;">Başarılı</div>
+                        <div class="chip" data-value="follow" style="--chip-color: #e74c3c;">Takip</div>
+                        <div class="chip" data-value="support" style="--chip-color: #f1c40f;">Destek</div>
+                        <div class="chip" data-value="passive" style="--chip-color: #95a5a6;">Pasif</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Genel Notlar</label>
+                    <textarea id="student-notes" rows="3" placeholder="Öğrenci hakkında genel gözlemler..."
+                        style="width:100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-close-student-modal">İptal</button>
+                    <button type="submit" class="btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Note Add Modal -->
+    <div id="modal-note" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-note-title">Not Ekle</h3>
+            <form id="form-note">
+                <input type="hidden" id="note-student-id">
+
+                <div class="form-group">
+                    <label>Tarih</label>
+                    <input type="date" id="note-date" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Not</label>
+                    <textarea id="note-text" rows="4" required placeholder="Notunuzu buraya yazın..."
+                        style="width:100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-close-note-modal">İptal</button>
+                    <button type="submit" class="btn-primary">Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Exam Add Modal -->
+    <div id="modal-exam" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-exam-title">Sınav Notu Ekle</h3>
+            <form id="form-exam">
+                <input type="hidden" id="exam-student-id">
+
+                <div class="form-group">
+                    <label>Sınav Adı</label>
+                    <input type="text" id="exam-name" required placeholder="Örn: 1. Yazılı">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tarih</label>
+                        <input type="date" id="exam-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Puan (0-100)</label>
+                        <input type="number" id="exam-score" min="0" max="100" required placeholder="85">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-close-exam-modal">İptal</button>
+                    <button type="submit" class="btn-primary">Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN VIEWS EXTENSION -->
+    <!-- Note: We inject these extra views into Main dynamically or just hide/show placeholders -->
+    <!-- I will add them to the main-content directly below -->
+
+    </main>
+
+    <!-- EXTRA VIEWS (Hidden by default, overlaid or part of SPA) -->
+
+    <!-- Class Detail View -->
+    <section id="view-class-detail" class="view">
+        <div class="sub-header">
+            <button class="btn-back" data-target="view-classes">←</button>
+            <h2 id="class-detail-title">9-A Sınıfı</h2>
+        </div>
+        <div class="filter-bar">
+            <input type="text" id="student-search" placeholder="Öğrenci ara..." class="search-input">
+        </div>
+        <div id="student-list" class="student-grid">
+            <!-- Students -->
+        </div>
+        <button id="btn-add-student" class="fab-btn">
+            <span>+</span>
+        </button>
+    </section>
+
+    <!-- Student Profile View -->
+    <section id="view-student-profile" class="view">
+        <div class="sub-header">
+            <button class="btn-back" id="btn-back-from-student">←</button>
+            <h2>Öğrenci Profili</h2>
+            <button class="btn-icon" id="btn-edit-student">✎</button>
+        </div>
+
+        <div class="student-profile-hero">
+            <div class="profile-image-container medium">
+                <span id="std-profile-avatar">🎓</span>
+                <img id="std-profile-img" src="" style="display:none;">
+            </div>
+            <h2 id="std-profile-name">...</h2>
+            <p id="std-profile-no">...</p>
+            <div id="std-profile-tags" class="tags-container"></div>
+
+            <button id="btn-create-pdf" class="btn-primary"
+                style="margin-top: 15px; width: auto; font-size: 0.9rem; padding: 8px 16px;">
+                📄 PDF Oluştur
+            </button>
+        </div>
+
+        <div class="student-profile-tabs">
+            <button class="tab-btn active" data-tab="tab-info">Bilgiler</button>
+            <button class="tab-btn" data-tab="tab-notes">Notlar</button>
+            <button class="tab-btn" data-tab="tab-exams">Sınavlar</button>
+        </div>
+
+        <div class="tab-content active" id="tab-info">
+            <div class="info-card">
+                <h3>Veli İletişim</h3>
+                <div class="parent-item">
+                    <div class="parent-info">
+                        <span class="label">Anne</span>
+                        <strong id="std-mother-name">-</strong>
+                    </div>
+                    <div class="actions" id="actions-mother">
+                        <!-- injected by JS -->
+                    </div>
+                </div>
+                <div class="parent-item">
+                    <div class="parent-info">
+                        <span class="label">Baba</span>
+                        <strong id="std-father-name">-</strong>
+                    </div>
+                    <div class="actions" id="actions-father">
+                        <!-- injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Genel Notlar</h3>
+                <p id="std-general-notes" style="white-space: pre-wrap; color: #555;">...</p>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-notes">
+            <div id="notes-list" class="timeline-list">
+                <!-- Notes injected here -->
+            </div>
+            <button id="btn-add-note" class="fab-btn-mini">
+                <span>+</span> Not Ekle
+            </button>
+        </div>
+
+        <div class="tab-content" id="tab-exams">
+            <div class="exam-summary">
+                <span class="label">Ortalama</span>
+                <span class="value" id="exam-average">-</span>
+            </div>
+            <div id="exams-list" class="exam-list">
+                <!-- Exams injected here -->
+            </div>
+            <button id="btn-add-exam" class="fab-btn-mini" style="margin-top: 15px;">
+                <span>+</span> Sınav Ekle
+            </button>
+        </div>
+    </section>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-target="view-profile" data-title="Profil">
+            <span class="icon">👤</span>
+            <span class="label">Profil</span>
+        </button>
+        <button class="nav-item" data-target="view-classes" data-title="Sınıflar">
+            <span class="icon">🏫</span>
+            <span class="label">Sınıflar</span>
+        </button>
+        <button class="nav-item" data-target="view-students" data-title="Öğrenciler">
+            <span class="icon">🎓</span>
+            <span class="label">Öğrenciler</span>
+        </button>
+        <button class="nav-item" data-target="view-alumni" data-title="Mezunlar">
+            <span class="icon">📜</span>
+            <span class="label">Mezunlar</span>
+        </button>
+        <button class="nav-item" data-target="view-settings" data-title="Ayarlar">
+            <span class="icon">⚙️</span>
+            <span class="label">Ayarlar</span>
+        </button>
+    </nav>
+
+    <!-- Plan Modal -->
+    <div id="modal-plan" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Yeni Plan Ekle</h3>
+            <form id="form-plan">
+                <input type="hidden" id="plan-id">
+
+                <div class="form-group">
+                    <label>Başlık</label>
+                    <input type="text" id="plan-title" required placeholder="Örn: 9. Sınıf Matematik">
+                </div>
+
+                <div class="form-group">
+                    <label>Tür</label>
+                    <select id="plan-type" required>
+                        <option value="yearly">Yıllık Plan</option>
+                        <option value="weekly">Haftalık Ders Programı</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Dosya (PDF/Resim)</label>
+                    <input type="file" id="plan-file" required accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx">
+                    <small style="display:block; margin-top:5px; color:#888;">Maksimum 5MB önerilir.</small>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-close-plan-modal">İptal</button>
+                    <button type="submit" class="btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Theme Modal -->
+    <div id="modal-theme" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Tema Seç</h3>
+            <div class="list-group">
+                <button class="settings-item theme-option" data-theme="default">
+                    <span class="icon" style="color:#4a90e2">🔵</span> Klasik Mavi
+                </button>
+                <button class="settings-item theme-option" data-theme="green">
+                    <span class="icon" style="color:#2e7d32">🌿</span> Doğa Yeşili
+                </button>
+                <button class="settings-item theme-option" data-theme="dark">
+                    <span class="icon" style="color:#333">⚫</span> Premium Koyu
+                </button>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-text" id="btn-close-theme-modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-area"></div>
+    <!-- Filled dynamically -->
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>
