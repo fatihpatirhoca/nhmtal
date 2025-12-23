@@ -196,7 +196,8 @@
         <!-- Plans View -->
         <section id="view-plans" class="view">
             <div class="sub-header">
-                <button class="btn-back" onclick="document.querySelector('[data-target=view-profile]').click()">←</button>
+                <button class="btn-back"
+                    onclick="document.querySelector('[data-target=view-profile]').click()">←</button>
                 <h2>Planlarım</h2>
                 <div style="width: 24px;"></div>
             </div>
@@ -206,9 +207,13 @@
                 <button class="tab-btn" data-tab="plan-weekly">Haftalık Program</button>
             </div>
 
-            <div id="plan-list-container" style="padding-bottom: 80px;">
-                <!-- Plan items will be injected here -->
-                <div class="empty-state-small">Yüklenen plan yok.</div>
+            <!-- Independent Containers for Scroll & State -->
+            <div id="plan-yearly-list" class="plan-tab-content active" style="padding-bottom: 80px;">
+                <div class="empty-state-small">🔄 Yükleniyor...</div>
+            </div>
+
+            <div id="plan-weekly-list" class="plan-tab-content" style="padding-bottom: 80px; display: none;">
+                <div class="empty-state-small">🔄 Yükleniyor...</div>
             </div>
 
             <button class="fab-btn" id="btn-add-plan"
@@ -218,7 +223,8 @@
         <!-- Info View -->
         <section id="view-info" class="view">
             <div class="sub-header">
-                <button class="btn-back" onclick="document.querySelector('[data-target=view-settings]').click()">←</button>
+                <button class="btn-back"
+                    onclick="document.querySelector('[data-target=view-settings]').click()">←</button>
                 <h2>Hakkında</h2>
                 <div style="width: 24px;"></div>
             </div>
@@ -231,7 +237,8 @@
 
             <div class="info-card">
                 <h3>🔒 Veri Gizliliği</h3>
-                <p>Bu uygulama verileri <strong>sadece cihazınızda</strong> (tarayıcı belleği) saklar. Hiçbir sunucuya veri
+                <p>Bu uygulama verileri <strong>sadece cihazınızda</strong> (tarayıcı belleği) saklar. Hiçbir sunucuya
+                    veri
                     gönderilmez. İnternet bağlantısı olmasa bile çalışır.</p>
                 <br>
                 <p><strong>Önemli:</strong> Tarayıcı geçmişini temizlerseniz verileriniz silinebilir. "Verileri Temizle"
@@ -240,15 +247,29 @@
 
             <div class="info-card">
                 <h3>📄 PDF Çıktı</h3>
-                <p>Öğrenci profillerini PDF olarak kaydedebilir veya yazdırabilirsiniz. "PDF Oluştur" butonuna bastığınızda,
-                    cihazınızın yerel yazdırma servisi açılır. Buradan "PDF Olarak Kaydet" seçeneğini kullanabilirsiniz.</p>
+                <p>Öğrenci profillerini PDF olarak kaydedebilir, "Paylaş" butonu ile saniyeler içinde WhatsApp veya Mail
+                    üzerinden iletebilirsiniz.</p>
+            </div>
+
+            <div class="info-card"
+                style="text-align: center; margin-top: 30px; background: rgba(var(--primary-rgb), 0.05); border: 1px solid var(--primary-color);">
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 5px;">Tasarım ve Geliştirme</p>
+                <div onclick="window.open('https://fatihpatirhoca.github.io/web/index.html', '_blank')"
+                    style="cursor: pointer; padding: 10px;">
+                    <h2 style="color: var(--primary-color); font-weight: 800; margin: 0; font-size: 1.5rem;">Fatih PATIR
+                    </h2>
+                    <p style="color: #444; font-size: 0.85rem; margin-top: 5px;">(C) 2025 - Tüm Hakları Saklıdır</p>
+                    <div style="margin-top: 15px; font-size: 0.85rem; color: var(--primary-color); font-weight: 600;">
+                        Kişisel Web Sayfamı Ziyaret Edin →</div>
+                </div>
             </div>
         </section>
 
         <!-- Class Detail View -->
         <section id="view-class-detail" class="view">
             <div class="sub-header">
-                <button class="btn-back" onclick="document.querySelector('[data-target=view-classes]').click()">←</button>
+                <button class="btn-back"
+                    onclick="document.querySelector('[data-target=view-classes]').click()">←</button>
                 <h2 id="class-detail-title">9-A Sınıfı</h2>
             </div>
             <div class="filter-bar">
@@ -280,8 +301,8 @@
                 <div id="std-profile-tags" class="tags-container"></div>
 
                 <button id="btn-create-pdf" class="btn-primary"
-                    style="margin-top: 15px; width: auto; font-size: 0.9rem; padding: 8px 16px;">
-                    📄 PDF Oluştur
+                    style="margin-top: 15px; width: auto; font-size: 0.9rem; padding: 10px 20px; border-radius: 25px; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);">
+                    📄 PDF Olarak İlet
                 </button>
             </div>
 
@@ -583,9 +604,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Dosya (PDF/Resim)</label>
-                    <input type="file" id="plan-file" required accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx">
-                    <small style="display:block; margin-top:5px; color:#888;">Maksimum 5MB önerilir.</small>
+                    <label>Dosya (PDF, Word, Excel veya Resim)</label>
+                    <input type="file" id="plan-file" required accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                    <small style="display:block; margin-top:5px; color:#888;">Otomatik olarak PDF'e
+                        dönüştürülecektir.</small>
                 </div>
 
                 <div class="modal-actions">
@@ -618,6 +640,13 @@
     </div>
 
     <div id="print-area"></div>
+
+    <!-- PDF Conversion Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <script src="app.js?v=7"></script>
 </body>
 

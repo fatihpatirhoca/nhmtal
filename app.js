@@ -106,6 +106,17 @@ function navigate(viewId, title) {
 
         // Scroll top
         document.getElementById('main-content').scrollTop = 0;
+
+        // Reset Student Detail State
+        if (viewId !== 'view-student-profile') {
+            currentStudentId = null;
+        }
+
+        // Custom View Refresh
+        if (viewId === 'view-plans') {
+            renderPlans('yearly');
+            renderPlans('weekly');
+        }
     }
 }
 
@@ -769,17 +780,43 @@ function setupPlansLogic() {
         savePlan();
     };
 
+    // Scroll Memory for Tabs
+    const planScrollPositions = { 'plan-yearly': 0, 'plan-weekly': 0 };
+
     // Tab switching plans
     document.querySelectorAll('#view-plans .tab-btn').forEach(btn => {
         btn.onclick = () => {
+            const mainContent = document.getElementById('main-content');
+            const currentTab = document.querySelector('#view-plans .tab-btn.active').getAttribute('data-tab');
+
+            // 1. Save current scroll
+            planScrollPositions[currentTab] = mainContent.scrollTop;
+
+            const tabId = btn.getAttribute('data-tab');
             document.querySelectorAll('#view-plans .tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.plan-tab-content').forEach(c => {
+                c.style.display = 'none';
+                c.classList.remove('active');
+            });
+
             btn.classList.add('active');
-            renderPlans();
+            const targetContainerId = tabId === 'plan-yearly' ? 'plan-yearly-list' : 'plan-weekly-list';
+            const targetContainer = document.getElementById(targetContainerId);
+            targetContainer.style.display = 'block';
+            targetContainer.classList.add('active');
+
+            // 2. Restore tab scroll after a tiny delay for layout
+            setTimeout(() => {
+                mainContent.scrollTop = planScrollPositions[tabId] || 0;
+            }, 0);
+
+            // Re-render when switching just in case
+            renderPlans(tabId === 'plan-yearly' ? 'yearly' : 'weekly');
         };
     });
 }
 
-function savePlan() {
+async function savePlan() {
     const title = document.getElementById('plan-title').value;
     const type = document.getElementById('plan-type').value;
     const fileInput = document.getElementById('plan-file');
@@ -790,31 +827,154 @@ function savePlan() {
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const plan = { title, type, fileData: e.target.result, fileName: file.name, createdAt: new Date() };
+    // Edge Case: File Size Check (10MB limit to prevent IDB/Memory issues)
+    if (file.size > 10 * 1024 * 1024) {
+        alert("Dosya çok büyük (Maksimum 10MB). Lütfen daha küçük bir dosya seçin.");
+        return;
+    }
+
+    const btn = document.querySelector('#form-plan button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = "PDF'e Dönüştürülüyor...";
+    btn.disabled = true;
+
+    try {
+        const pdfData = await convertFileToPDF(file);
+        const plan = {
+            title,
+            type,
+            fileData: pdfData,
+            fileName: file.name.split('.')[0] + '.pdf',
+            originalName: file.name,
+            createdAt: new Date()
+        };
         const tx = db.transaction(['plans'], 'readwrite');
         tx.objectStore('plans').add(plan).onsuccess = () => {
             document.getElementById('modal-plan').classList.remove('active');
-            renderPlans();
+            renderPlans(type);
         };
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error("PDF Dönüştürme Hatası:", error);
+        alert("Dosya PDF'e dönüştürülürken hata oluştu. Lütfen dosyanın bozuk olmadığından emin olun.\nHata: " + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
 }
 
-function renderPlans() {
-    const activeTab = document.querySelector('#view-plans .tab-btn.active').getAttribute('data-tab');
-    const targetType = activeTab === 'plan-yearly' ? 'yearly' : 'weekly';
-    const container = document.getElementById('plan-list-container');
-    container.innerHTML = '';
+async function convertFileToPDF(file) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const fileName = file.name.toLowerCase();
+
+    // 1. PDF ise doğrudan oku
+    if (fileName.endsWith('.pdf')) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 2. Resim ise PDF'e yerleştir
+    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png')) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const pdf = new jsPDF();
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = pageWidth - 20;
+                    const imgHeight = (img.height * imgWidth) / img.width;
+                    pdf.addImage(img, 'JPEG', 10, 10, imgWidth, imgHeight);
+                    resolve(pdf.output('datauristring'));
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 3. Word (.docx) ise Mammoth ile HTML'e çevir
+    if (fileName.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        return await renderHtmlToPdf(result.value);
+    }
+
+    // 4. Excel (.xlsx) ise SheetJS ile HTML'e çevir
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const firstSheetName = workbook.SheetNames[0];
+        const firstSheet = workbook.Sheets[firstSheetName];
+        const html = XLSX.utils.sheet_to_html(firstSheet);
+        return await renderHtmlToPdf(html);
+    }
+
+    throw new Error("Desteklenmeyen dosya formatı.");
+}
+
+async function renderHtmlToPdf(htmlContent) {
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '800px';
+    tempDiv.style.padding = '40px';
+    tempDiv.style.background = 'white';
+    tempDiv.style.color = 'black';
+    tempDiv.style.fontFamily = 'Arial, sans-serif';
+    tempDiv.innerHTML = `
+        <div style="margin-bottom: 20px; border-bottom: 2px solid #4a90e2; padding-bottom: 10px;">
+            <h2 style="color: #4a90e2;">Ders Planı</h2>
+            <small style="color: #888;">NHMTAL Öğretmen Asistanı tarafından dönüştürüldü</small>
+        </div>
+        ${htmlContent}
+    `;
+
+    document.body.appendChild(tempDiv);
+
+    try {
+        const canvas = await html2canvas(tempDiv, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgWidth = pageWidth - 20;
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+        return pdf.output('datauristring');
+    } finally {
+        document.body.removeChild(tempDiv);
+    }
+}
+
+function renderPlans(targetType) {
+    const containerId = targetType === 'yearly' ? 'plan-yearly-list' : 'plan-weekly-list';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Show Loading inside the specific container
+    container.innerHTML = '<div class="empty-state-small">🔄 Yükleniyor...</div>';
 
     const tx = db.transaction(['plans'], 'readonly');
-    tx.objectStore('plans').getAll().onsuccess = (e) => {
+    const store = tx.objectStore('plans');
+
+    store.getAll().onsuccess = (e) => {
         const plans = e.target.result.filter(p => p.type === targetType);
+        container.innerHTML = ''; // Clear loading
+
         if (plans.length === 0) {
             container.innerHTML = '<div class="empty-state-small">Henüz plan eklenmedi.</div>';
             return;
         }
+
         plans.forEach(p => {
             const el = document.createElement('div');
             el.className = 'info-card';
@@ -875,49 +1035,147 @@ function setupPDFLogic() {
     document.getElementById('btn-create-pdf').onclick = generatePDF;
 }
 
-function generatePDF() {
-    const tx = db.transaction(['students', 'teachers', 'classes'], 'readonly');
-    let teacher, student, className;
+async function generatePDF() {
+    if (!currentStudentId) return;
 
-    tx.objectStore('teachers').get('teacher_profile').onsuccess = (e) => teacher = e.target.result;
-    tx.objectStore('students').get(currentStudentId).onsuccess = (e) => {
-        student = e.target.result;
+    const btn = document.getElementById('btn-create-pdf');
+    const originalText = btn.textContent;
+    btn.textContent = "⌛ PDF Hazırlanıyor...";
+    btn.disabled = true;
+
+    try {
+        const tx = db.transaction(['students', 'teachers', 'classes'], 'readonly');
+        const teacherReq = tx.objectStore('teachers').get('teacher_profile');
+        const studentReq = tx.objectStore('students').get(currentStudentId);
+
+        const [teacher, student] = await Promise.all([
+            new Promise(r => teacherReq.onsuccess = (e) => r(e.target.result)),
+            new Promise(r => studentReq.onsuccess = (e) => r(e.target.result))
+        ]);
+
+        let className = '-';
         if (student.classId) {
-            db.transaction(['classes'], 'readonly').objectStore('classes').get(student.classId).onsuccess = (ev) => {
-                className = ev.target.result?.name;
-                renderPrintView(teacher, student, className);
-            };
+            const classReq = db.transaction(['classes'], 'readonly').objectStore('classes').get(student.classId);
+            const classData = await new Promise(r => classReq.onsuccess = (e) => r(e.target.result));
+            className = classData ? classData.name : '-';
         } else {
-            className = student.prevClass;
-            renderPrintView(teacher, student, className);
+            className = student.prevClass || '-';
         }
-    };
+
+        const today = new Date().toLocaleDateString('tr-TR');
+
+        // Generate Professional HTML for PDF
+        const pdfHtml = `
+            <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+                <div style="text-align: center; border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h1 style="margin: 0; color: #4a90e2; font-size: 24px;">${teacher.school || 'Okul Adı'}</h1>
+                    <h2 style="margin: 5px 0 0; font-size: 18px; color: #666;">Öğrenci Bilgi Formu</h2>
+                </div>
+
+                <div style="display: flex; gap: 20px; margin-bottom: 30px; align-items: start;">
+                    <div style="flex: 1;">
+                        <p style="margin: 5px 0;"><strong>Öğrenci:</strong> ${student.name}</p>
+                        <p style="margin: 5px 0;"><strong>Numara:</strong> ${student.number}</p>
+                        <p style="margin: 5px 0;"><strong>Sınıf:</strong> ${className}</p>
+                        <p style="margin: 5px 0;"><strong>Tarih:</strong> ${today}</p>
+                    </div>
+                    <div style="flex: 1; border-left: 1px solid #eee; padding-left: 20px;">
+                        <p style="margin: 5px 0;"><strong>Öğretmen:</strong> ${teacher.name}</p>
+                        <p style="margin: 5px 0;"><strong>Branş:</strong> ${teacher.branch}</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #4a90e2; border-bottom: 1px solid #eee; padding-bottom: 5px;">👨‍👩‍👦 Veli Bilgileri</h3>
+                    <div style="display: flex; gap: 40px;">
+                        <div>
+                            <p style="margin: 5px 0;"><strong>Anne:</strong> ${student.parents?.mother?.name || '-'}</p>
+                            <p style="margin: 5px 0;"><strong>Tel:</strong> ${student.parents?.mother?.tel || '-'}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 5px 0;"><strong>Baba:</strong> ${student.parents?.father?.name || '-'}</p>
+                            <p style="margin: 5px 0;"><strong>Tel:</strong> ${student.parents?.father?.tel || '-'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #4a90e2; border-bottom: 1px solid #eee; padding-bottom: 5px;">📈 Sınav Notları</h3>
+                    ${student.exams?.length ? `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                            <tr style="background: #f8f9fa;">
+                                <th style="border: 1px solid #eee; padding: 8px; text-align: left;">Sınav Adı</th>
+                                <th style="border: 1px solid #eee; padding: 8px; text-align: right;">Puan</th>
+                            </tr>
+                            ${student.exams.map(e => `
+                                <tr>
+                                    <td style="border: 1px solid #eee; padding: 8px;">${e.name}</td>
+                                    <td style="border: 1px solid #eee; padding: 8px; text-align: right;">${e.score}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    ` : '<p style="color: #888; font-style: italic;">Kayıtlı sınav bulunmamaktadır.</p>'}
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #4a90e2; border-bottom: 1px solid #eee; padding-bottom: 5px;">📝 Öğretmen Notları</h3>
+                    ${student.teacherNotes?.length ? student.teacherNotes.map(n => `
+                        <div style="margin-bottom: 10px; padding: 8px; background: #fdfdfd; border-left: 3px solid #eee;">
+                            <small style="color: #999;">${new Date(n.date).toLocaleDateString('tr-TR')}:</small>
+                            <p style="margin: 4px 0;">${n.text}</p>
+                        </div>
+                    `).join('') : '<p style="color: #888; font-style: italic;">Kayıtlı not bulunmamaktadır.</p>'}
+                </div>
+
+                <div style="margin-top: 50px; padding-top: 10px; border-top: 1px solid #eee; text-align: center; font-size: 11px; color: #888;">
+                    <p>Bu evrak <strong>${teacher.name}</strong> tarafından paylaşılmıştır. Kişisel veri içermektedir.</p>
+                    <p>(C) 2025 ${teacher.school || 'Nene Hatun MTAL'}</p>
+                </div>
+            </div>
+        `;
+
+        // 2. Generate PDF using our reusable renderer
+        const pdfDataUri = await renderHtmlToPdf(pdfHtml);
+
+        // 3. Share or Fallback
+        const byteString = atob(pdfDataUri.split(',')[1]);
+        const mimeString = pdfDataUri.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+
+        const blob = new Blob([ab], { type: mimeString });
+        const fileName = `${student.name.replace(/\s+/g, '_')}_Gelisim_Raporu.pdf`;
+        const file = new File([blob], fileName, { type: mimeString });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: `${student.name} Gelişim Raporu`,
+                text: `${student.name} isimli öğrencinin gelişim raporu ektedir.`
+            });
+        } else {
+            // Fallback: Download for Desktop or systems without share
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            alert("Paylaşım özelliği bu cihazda desteklenmiyor. Dosya cihaza indirildi.");
+        }
+
+    } catch (error) {
+        console.error("PDF Generate Error:", error);
+        alert("PDF oluşturulurken bir hata oluştu: " + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
 }
 
-function renderPrintView(teacher, student, className) {
-    const printArea = document.getElementById('print-area');
-    const today = new Date().toLocaleDateString('tr-TR');
-
-    let examsHtml = student.exams?.length ? `<table style="width:100%; border-collapse:collapse; margin-top:10px;">` + student.exams.map(e => `<tr style="border-bottom:1px solid #eee;"><td>${e.name}</td><td>${e.score}</td></tr>`).join('') + `</table>` : 'Sınav yok.';
-    let notesHtml = student.teacherNotes?.length ? student.teacherNotes.map(n => `<div style="margin-top:10px; font-size:14px;"><strong>${n.date}:</strong> ${n.text}</div>`).join('') : 'Not yok.';
-
-    printArea.innerHTML = `
-        <div style="padding:40px; font-family:sans-serif;">
-            <h1 style="text-align:center;">${teacher.school}</h1>
-            <h2 style="text-align:center;">Öğrenci Gözlem Formu</h2>
-            <hr>
-            <p><strong>Öğretmen:</strong> ${teacher.name} (${teacher.branch})</p>
-            <p><strong>Öğrenci:</strong> ${student.name} (${student.number})</p>
-            <p><strong>Sınıf:</strong> ${className || '-'}</p>
-            <h3>Sınav Notları</h3>${examsHtml}
-            <h3>Öğretmen Notları</h3>${notesHtml}
-            <footer style="margin-top:50px; text-align:right;"><p>${today}</p></footer>
-        </div>
-    `;
-    window.print();
-}
+// function renderPrintView(teacher, student, className) { // Deprecated by generatePDF with Share API
+// }
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=7');
+    navigator.serviceWorker.register('./sw.js?v=10');
 }
