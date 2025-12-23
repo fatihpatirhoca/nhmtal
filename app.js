@@ -1,28 +1,41 @@
-// NHMTAL Teacher PWA - Main Logic
+// NHMTAL Teacher PWA - Main Logic v7
 let db;
 const DB_NAME = 'NHMTAL_DB';
-const DB_VERSION = 2; // Upgraded for Plans
+const DB_VERSION = 3;
 
 // Global current state
 let currentClassId = null;
 let currentStudentId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    initDB();
-    setupNavigation();
-    setupProfileLogic();
-    setupClassLogic();
-    setupStudentLogic();
-    setupPerformanceLogic();
-    setupAlumniLogic();
-    setupTransitionLogic();
-    setupPDFLogic();
-    setupPlansLogic(); // New
-    setupSettingsLogic(); // New
+    console.log("NHMTAL App v7 Initializing...");
+
+    try {
+        initDB();
+    } catch (e) {
+        console.error("Critical DB Init Error:", e);
+    }
+
+    try {
+        setupNavigation();
+        setupProfileLogic();
+        setupClassLogic();
+        setupStudentLogic();
+        setupPerformanceLogic();
+        setupAlumniLogic();
+        setupTransitionLogic();
+        setupPDFLogic();
+        setupPlansLogic();
+        setupSettingsLogic();
+    } catch (e) {
+        console.error("Setup Error:", e);
+    }
 
     // Check theme
-    const savedTheme = localStorage.getItem('app-theme') || 'default';
-    applyTheme(savedTheme);
+    try {
+        const savedTheme = localStorage.getItem('app-theme') || 'default';
+        applyTheme(savedTheme);
+    } catch (e) { console.warn("Theme load failed", e); }
 });
 
 function initDB() {
@@ -30,31 +43,26 @@ function initDB() {
 
     request.onerror = (event) => {
         console.error("Database error: " + event.target.errorCode);
-        alert("Veritabanı hatası. Uygulama düzgün çalışmayabilir.");
     };
 
     request.onupgradeneeded = (event) => {
         const db = event.target.result;
 
-        // Teachers Store (Profile)
         if (!db.objectStoreNames.contains('teachers')) {
             db.createObjectStore('teachers', { keyPath: 'id', autoIncrement: true });
         }
 
-        // Classes Store
         if (!db.objectStoreNames.contains('classes')) {
             const classStore = db.createObjectStore('classes', { keyPath: 'id', autoIncrement: true });
             classStore.createIndex('name', 'name', { unique: false });
         }
 
-        // Students Store
         if (!db.objectStoreNames.contains('students')) {
             const studentStore = db.createObjectStore('students', { keyPath: 'id', autoIncrement: true });
             studentStore.createIndex('classId', 'classId', { unique: false });
             studentStore.createIndex('name', 'name', { unique: false });
         }
 
-        // Plans Store (New in v2)
         if (!db.objectStoreNames.contains('plans')) {
             const planStore = db.createObjectStore('plans', { keyPath: 'id', autoIncrement: true });
             planStore.createIndex('type', 'type', { unique: false });
@@ -65,146 +73,197 @@ function initDB() {
         db = event.target.result;
         console.log("DB Initialized");
         checkFirstLaunch();
-        // Pre-load logic if needed
-        renderClasses(); // Ensure classes specific logic is ready
+        renderClasses();
     };
 }
 
+// --- Navigation ---
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
-    const views = document.querySelectorAll('.view');
-    const appHeader = document.querySelector('.app-header');
-    const bottomNav = document.querySelector('.bottom-nav');
-
     navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            // Handle disabled items
-            if (item.classList.contains('disabled')) return;
-
-            // UI Toggle
-            navItems.forEach(n => n.classList.remove('active'));
-            item.classList.add('active');
-
-            const targetId = item.getAttribute('data-target');
-            views.forEach(v => v.classList.remove('active'));
-
-            const targetView = document.getElementById(targetId);
-            if (targetView) targetView.classList.add('active');
-
-            // Special cases
-            if (targetId === 'view-settings') {
-                // appHeader.style.display = 'none'; // Optional: keep header or not
-            } else {
-                appHeader.style.display = 'flex';
-            }
-
-            // Reset state if leaving details
-            if (targetId === 'view-classes' || targetId === 'view-welcome') {
-                currentClassId = null;
-                currentStudentId = null;
-                // Show core UI
-                bottomNav.style.display = 'flex';
-                appHeader.style.display = 'flex';
-            }
+        item.addEventListener('click', () => {
+            const target = item.getAttribute('data-target');
+            const title = item.getAttribute('data-title');
+            navigate(target, title);
         });
     });
 }
 
-// Ensure initDB call checks (existing)
-// We need to inject the fetch for classes inside the DB success
+function navigate(viewId, title) {
+    // Hide all views
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    // Show target
+    const targetView = document.getElementById(viewId);
+    if (targetView) {
+        targetView.classList.add('active');
+        if (title) document.getElementById('page-title').textContent = title;
 
-// Let's modify initDB to load classes if we are in app mode
-// But better, let's make a generic "loadCurrentView" function
+        // Update nav items
+        document.querySelectorAll('.nav-item').forEach(item => {
+            if (item.getAttribute('data-target') === viewId) item.classList.add('active');
+            else item.classList.remove('active');
+        });
+
+        // Scroll top
+        document.getElementById('main-content').scrollTop = 0;
+    }
+}
+
+// --- First Launch ---
+function checkFirstLaunch() {
+    const tx = db.transaction(['teachers'], 'readonly');
+    const store = tx.objectStore('teachers');
+    const req = store.get('teacher_profile');
+
+    req.onsuccess = (e) => {
+        if (!e.target.result) {
+            showSetupMode();
+        } else {
+            loadTeacherProfile(e.target.result);
+            showAppMode();
+        }
+    };
+}
+
+function showSetupMode() {
+    document.getElementById('view-welcome').classList.add('active');
+    document.querySelector('.bottom-nav').style.display = 'none';
+    document.querySelector('.app-header').style.display = 'none';
+}
+
+function showAppMode() {
+    document.getElementById('view-welcome').classList.remove('active');
+    document.querySelector('.bottom-nav').style.display = 'flex';
+    document.querySelector('.app-header').style.display = 'flex';
+    navigate('view-profile', 'Profil');
+}
+
+// --- Teacher Profile Logic ---
+function setupProfileLogic() {
+    const form = document.getElementById('setup-form');
+    const avatarOpts = document.querySelectorAll('.avatar-option');
+    let selectedAvatar = 'avatar1.png';
+
+    avatarOpts.forEach(opt => {
+        opt.addEventListener('click', () => {
+            avatarOpts.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            selectedAvatar = opt.getAttribute('data-avatar');
+        });
+    });
+
+    const photoUpload = document.getElementById('photo-upload');
+    photoUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const preview = document.getElementById('photo-preview');
+                preview.src = ev.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveTeacherProfile();
+    });
+
+    document.getElementById('btn-edit-profile').addEventListener('click', () => {
+        const tx = db.transaction(['teachers'], 'readonly');
+        tx.objectStore('teachers').get('teacher_profile').onsuccess = (e) => {
+            const t = e.target.result;
+            if (t) {
+                document.getElementById('setup-name').value = t.name;
+                document.getElementById('setup-branch').value = t.branch;
+                document.getElementById('setup-school').value = t.school;
+                document.getElementById('setup-gender').value = t.gender;
+                showSetupMode();
+            }
+        };
+    });
+}
+
+function saveTeacherProfile() {
+    const name = document.getElementById('setup-name').value;
+    const branch = document.getElementById('setup-branch').value;
+    const school = document.getElementById('setup-school').value;
+    const gender = document.getElementById('setup-gender').value;
+    const photoPreview = document.getElementById('photo-preview').src;
+
+    // Determine avatar
+    let avatar = '👨‍🏫';
+    if (gender === 'female') avatar = '👩‍🏫';
+    if (gender === 'none') avatar = '🧑‍🏫';
+
+    const profileData = {
+        id: 'teacher_profile',
+        name,
+        branch,
+        school,
+        gender,
+        avatar,
+        photo: photoPreview.startsWith('data:') ? photoPreview : null,
+        updatedAt: new Date()
+    };
+
+    const tx = db.transaction(['teachers'], 'readwrite');
+    tx.objectStore('teachers').put(profileData).onsuccess = () => {
+        loadTeacherProfile(profileData);
+        showAppMode();
+    };
+}
+
+function loadTeacherProfile(t) {
+    document.getElementById('disp-name').textContent = t.name;
+    document.getElementById('disp-branch').textContent = t.branch;
+    document.getElementById('disp-school').textContent = t.school || 'Belirtilmedi';
+    document.getElementById('disp-gender').textContent = t.gender === 'male' ? 'Erkek' : (t.gender === 'female' ? 'Kadın' : 'Belirtilmedi');
+
+    const avatarDisp = document.getElementById('profile-avatar-display');
+    const imgDisp = document.getElementById('profile-img-display');
+
+    if (t.photo) {
+        imgDisp.src = t.photo;
+        imgDisp.style.display = 'block';
+        avatarDisp.style.display = 'none';
+    } else {
+        avatarDisp.textContent = t.avatar || '👨‍🏫';
+        avatarDisp.style.display = 'block';
+        imgDisp.style.display = 'none';
+    }
+}
 
 // --- Class Logic ---
-let isEditingClass = false;
-
 function setupClassLogic() {
-    // Open Modal
-    const btnAddClass = document.getElementById('btn-add-class');
-    const modalClass = document.getElementById('modal-class');
-    const btnCloseClass = document.getElementById('btn-close-class-modal');
-    const formClass = document.getElementById('form-class');
+    const btnAdd = document.getElementById('btn-add-class');
+    const modal = document.getElementById('modal-class');
+    const form = document.getElementById('form-class');
 
-    // Level Chips
-    const chips = document.querySelectorAll('.chip');
-    const levelInput = document.getElementById('class-level');
-
-    chips.forEach(chip => {
-        chip.addEventListener('click', () => {
-            chips.forEach(c => c.classList.remove('selected'));
-            chip.classList.add('selected');
-            levelInput.value = chip.getAttribute('data-value');
-        });
+    btnAdd.addEventListener('click', () => {
+        form.reset();
+        document.getElementById('class-id').value = '';
+        document.getElementById('modal-class-title').textContent = 'Yeni Sınıf Ekle';
+        document.querySelectorAll('#level-selector .chip').forEach(c => c.classList.remove('selected'));
+        modal.classList.add('active');
     });
 
-    if (btnAddClass) {
-        btnAddClass.addEventListener('click', () => {
-            openClassModal();
-        });
-    }
+    document.getElementById('btn-close-class-modal').addEventListener('click', () => modal.classList.remove('active'));
 
-    if (btnCloseClass) {
-        btnCloseClass.addEventListener('click', () => {
-            modalClass.classList.remove('active');
-        });
-    }
-
-    // Close on outside click
-    modalClass.addEventListener('click', (e) => {
-        if (e.target === modalClass) modalClass.classList.remove('active');
-    });
-
-    // Form Submit
-    formClass.addEventListener('submit', (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
         saveClass();
     });
 
-    setupClassTabListener();
-}
-
-function openClassModal(classId = null) {
-    const modal = document.getElementById('modal-class');
-    const title = document.getElementById('modal-class-title');
-    const inputName = document.getElementById('class-name');
-    const inputLevel = document.getElementById('class-level');
-    const inputId = document.getElementById('class-id');
-    const chips = document.querySelectorAll('.chip');
-
-    chips.forEach(c => c.classList.remove('selected'));
-
-    if (classId) {
-        // Edit Mode
-        isEditingClass = true;
-        title.textContent = 'Sınıfı Düzenle';
-        inputId.value = classId;
-
-        // Fetch data
-        const transaction = db.transaction(['classes'], 'readonly');
-        const store = transaction.objectStore('classes');
-        const request = store.get(Number(classId));
-
-        request.onsuccess = (e) => { // Fixed: Using e instead of event for scope
-            const data = e.target.result;
-            inputName.value = data.name;
-            inputLevel.value = data.level;
-
-            // Select Chip
-            chips.forEach(c => {
-                if (c.getAttribute('data-value') === data.level) c.classList.add('selected');
-            });
-            modal.classList.add('active');
-        };
-    } else {
-        // Add Mode
-        isEditingClass = false;
-        title.textContent = 'Yeni Sınıf Ekle';
-        inputId.value = '';
-        inputName.value = '';
-        inputLevel.value = '';
-        modal.classList.add('active');
-    }
+    document.querySelectorAll('#level-selector .chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            document.querySelectorAll('#level-selector .chip').forEach(c => c.classList.remove('selected'));
+            chip.classList.add('selected');
+            document.getElementById('class-level').value = chip.getAttribute('data-value');
+        });
+    });
 }
 
 function saveClass() {
@@ -213,49 +272,15 @@ function saveClass() {
     const level = document.getElementById('class-level').value;
 
     if (!level) {
-        alert('Lütfen sınıf seviyesini seçiniz.');
+        alert("Lütfen sınıf seviyesi seçin.");
         return;
     }
 
-    const transaction = db.transaction(['classes'], 'readwrite');
-    const store = transaction.objectStore('classes');
+    const data = { name, level };
+    if (id) data.id = Number(id);
 
-    const classData = {
-        name: name,
-        level: level,
-        studentCount: 0, // Default
-        updatedAt: new Date()
-    };
-
-    if (id) {
-        // Update (need to preserve student count ideally, but for now 0 is fine or we fetch first)
-        // Better: Fetch first, then update
-        // But IndexedDB 'put' needs the Key. If keypath is 'id'.
-        classData.id = Number(id);
-        // Important: If we want to keep studentCount, we should have fetched it. 
-        // For simplified step 3, we assume 0 or we do a quick get-put.
-        // Let's do a simple PUT for now, assuming editing name/level doesn't reset DB if we provide ID.
-        // Actually, 'put' overwrites. So we should merge.
-
-        // Merging logic inside transaction is tricky without async/await wrapper for IDB.
-        // Let's assume for this step we just overwrite or ...
-        // WAIT. If we overwrite, we lose studentCount if it was >0 (Step 4). 
-        // So let's correct this:
-
-        // Correct Edit Flow:
-        // We already fetched in openClassModal, but that's async separate.
-        // Let's just do a 'put' with the ID. We risk losing other fields if we don't include them.
-        // For Step 3, there ARE no other fields. So it is fine.
-        // In Step 4, we will need to be careful.
-
-        store.put(classData);
-    } else {
-        // Add
-        classData.createdAt = new Date();
-        store.add(classData);
-    }
-
-    transaction.oncomplete = () => {
+    const tx = db.transaction(['classes'], 'readwrite');
+    tx.objectStore('classes').put(data).onsuccess = () => {
         document.getElementById('modal-class').classList.remove('active');
         renderClasses();
     };
@@ -263,942 +288,235 @@ function saveClass() {
 
 function renderClasses() {
     const list = document.getElementById('class-list');
-
-    // Preserve header/empty state logic? 
-    // We'll rebuild.
     list.innerHTML = '';
 
-    const transaction = db.transaction(['classes'], 'readonly');
-    const store = transaction.objectStore('classes');
-    const request = store.openCursor();
-
-    let hasClasses = false;
-
-    request.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            hasClasses = true;
-            const c = cursor.value;
-
-            // Create Card
-            const card = document.createElement('div');
-            card.className = 'class-card';
-            card.innerHTML = `
-    <div class="class-info">
-                    <h3>${c.name} <span class="class-level-badge">${c.level}. Sınıf</span></h3>
-                    <p>${c.studentCount} Öğrenci</p>
-                </div>
-    <div class="class-actions">
-        <button class="btn-edit-class" data-id="${c.id}">✏️</button>
-        <button class="btn-delete-class" data-id="${c.id}">🗑️</button>
-    </div>
-`;
-
-            // Edit
-            card.querySelector('.btn-edit-class').addEventListener('click', (e) => {
-                e.stopPropagation();
-                openClassModal(c.id);
-            });
-
-            // Delete
-            card.querySelector('.btn-delete-class').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm(`${c.name} sınıfı silinecek.Devam edilsin mi ? `)) {
-                    deleteClass(c.id);
-                }
-            });
-
-            // Card click (Navigate to details - later)
-            // card.addEventListener('click', () => { ... });
-
-            list.appendChild(card);
-            cursor.continue();
-        } else {
-            if (!hasClasses) {
-                list.innerHTML = '<div class="empty-state"><p>Henüz hiç sınıf eklenmedi.</p></div>';
-            }
+    const tx = db.transaction(['classes'], 'readonly');
+    tx.objectStore('classes').getAll().onsuccess = (e) => {
+        const classes = e.target.result;
+        if (classes.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>Henüz hiç sınıf eklenmedi.</p></div>';
+            return;
         }
+
+        classes.forEach(c => {
+            const card = document.createElement('div');
+            card.className = 'student-card';
+            card.innerHTML = `
+                <div class="student-list-avatar">🏫</div>
+                <div class="student-info">
+                    <h4>${c.name}</h4>
+                    <p>${c.level}. Sınıf Seviyesi</p>
+                </div>
+            `;
+            card.onclick = () => loadClassDetail(c.id);
+            list.appendChild(card);
+        });
     };
 }
 
-function deleteClass(id) {
-    const transaction = db.transaction(['classes'], 'readwrite');
-    const store = transaction.objectStore('classes');
-    store.delete(id);
-    transaction.oncomplete = () => {
-        renderClasses();
+function loadClassDetail(classId) {
+    currentClassId = classId;
+    const tx = db.transaction(['classes'], 'readonly');
+    tx.objectStore('classes').get(classId).onsuccess = (e) => {
+        const c = e.target.result;
+        document.getElementById('class-detail-title').textContent = c.name;
+        navigate('view-class-detail');
+        renderStudents(classId);
     };
 }
 
-// Hook renderClasses into Navigation or Init
-// We modify the existing initDB success slightly to render classes if valid
-// OR we just call it when "Classes" tab is clicked.
-// Let's modify the click listener in setupNavigation to load data if needed.
-// This is cleaner.
+// --- Student Logic ---
+function setupStudentLogic() {
+    const btnAdd = document.getElementById('btn-add-student');
+    const modal = document.getElementById('modal-student');
+    const form = document.getElementById('form-student');
 
-// We need to modify setupNavigation to expose a way to hook interactions.
-// Or just add a specific listener for the classes tab.
-// Since setupNavigation is already running, let's add a separate listener for the classes tab specifically.
-// But we need to make sure we don't duplicate logic.
-// Simpler: Just call renderClasses() whenever the Sınıflar tab is activated.
-
-// Let's override the click handler logic? No, let's just add an observer or extra listener.
-// Easier: Add specific logic in setupClassLogic that listens to the nav click.
-
-// But wait, I can't easily select the exact element and know IF it was clicked inside the generic loop without modifying the loop or adding ID.
-// The nav items have 'data-target="view-classes"'.
-
-function setupClassTabListener() {
-    const classBtn = document.querySelector('[data-target="view-classes"]');
-    classBtn.addEventListener('click', () => {
-        // Small delay to ensure DB is ready if fast click, or just call
-        if (db) renderClasses();
-        else setTimeout(renderClasses, 500); // Retry
-    });
-}
-// Call this in setupClassLogic
-
-
-// Navigation Logic
-function setupNavigation() {
-    const navItems = document.querySelectorAll('.nav-item');
-    const views = document.querySelectorAll('.view');
-    const pageTitle = document.getElementById('page-title');
-
-    navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            // Prevent navigation if in Welcome Screen mode (effectively disabled by hideNav, but good safeguard)
-            if (document.body.classList.contains('setup-mode')) return;
-
-            const targetId = item.getAttribute('data-target');
-            const title = item.getAttribute('data-title');
-
-            // Update UI
-            navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
-
-            views.forEach(view => {
-                view.classList.remove('active');
-                if (view.id === targetId) {
-                    view.classList.add('active');
-                    // Special case for scrolling top
-                    window.scrollTo(0, 0);
-                }
-            });
-
-            // Update Title
-            pageTitle.textContent = title;
-        });
+    btnAdd.addEventListener('click', () => {
+        form.reset();
+        document.getElementById('student-id').value = '';
+        document.getElementById('modal-student-title').textContent = 'Öğrenci Ekle';
+        document.getElementById('student-class-id').value = currentClassId;
+        document.getElementById('student-form-img').style.display = 'none';
+        document.getElementById('student-form-avatar').style.display = 'block';
+        document.querySelectorAll('#student-tags .chip').forEach(c => c.classList.remove('selected'));
+        modal.classList.add('active');
     });
 
-    // Settings -> Profile Link
-    document.getElementById('btn-settings-profile').addEventListener('click', () => {
-        document.querySelector('[data-target="view-profile"]').click();
-    });
-}
+    document.getElementById('btn-close-student-modal').addEventListener('click', () => modal.classList.remove('active'));
 
-// Profile & Setup Logic
-function setupProfileLogic() {
-    // Avatar Selection
-    const avatarOptions = document.querySelectorAll('.avatar-option');
-    const photoUpload = document.getElementById('photo-upload');
-    const photoPreview = document.getElementById('photo-preview');
-    let selectedAvatar = '👨‍🏫'; // Default
-    let selectedImageBase64 = null;
-
-    avatarOptions.forEach(opt => {
-        opt.addEventListener('click', () => {
-            avatarOptions.forEach(o => o.classList.remove('selected'));
-            opt.classList.add('selected');
-            selectedAvatar = opt.textContent;
-            selectedImageBase64 = null; // Reset custom image
-            photoPreview.style.display = 'none';
-        });
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveStudent();
     });
 
-    photoUpload.addEventListener('change', (e) => {
+    document.getElementById('student-photo-upload').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function (evt) {
-                selectedImageBase64 = evt.target.result;
-                photoPreview.src = selectedImageBase64;
-                photoPreview.style.display = 'block';
-                // Deselect avatars visual
-                avatarOptions.forEach(o => o.classList.remove('selected'));
+            reader.onload = (ev) => {
+                document.getElementById('student-form-img').src = ev.target.result;
+                document.getElementById('student-form-img').style.display = 'block';
+                document.getElementById('student-form-avatar').style.display = 'none';
             };
             reader.readAsDataURL(file);
         }
     });
 
-    // Form Submit
-    document.getElementById('setup-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-
-        if (!db) {
-            alert('Veritabanı henüz hazır değil. Lütfen sayfayı yenileyin veya birkaç saniye bekleyin.');
-            return;
-        }
-
-        const btn = e.target.querySelector('button[type="submit"]');
-        const originalText = btn.textContent;
-
-        // Show loading state
-        btn.disabled = true;
-        btn.textContent = 'Kaydediliyor...';
-
-        try {
-            const name = document.getElementById('setup-name').value;
-            const branch = document.getElementById('setup-branch').value;
-            const school = document.getElementById('setup-school').value;
-            const gender = document.getElementById('setup-gender').value;
-
-            const profileData = {
-                id: 'teacher_profile', // Singleton
-                name,
-                branch,
-                school,
-                gender,
-                avatar: selectedAvatar,
-                photo: selectedImageBase64,
-                createdAt: new Date()
-            };
-
-            // Pass error callback to reset button
-            saveTeacherProfile(profileData, () => {
-                // Error callback
-                btn.disabled = false;
-                btn.textContent = originalText;
-            });
-
-        } catch (err) {
-            console.error("Form Error:", err);
-            alert("Beklenmedik bir hata oluştu: " + err.message);
-            btn.disabled = false;
-            btn.textContent = originalText;
-        }
-    });
-
-    // Edit Button in Profile View
-    document.getElementById('btn-edit-profile').addEventListener('click', () => {
-        // For now, just show the Welcome Screen again as an "Edit" mode could be complex
-        // Or simply re-open the setup view but pre-filled.
-        // Let's re-open setup-view
-        loadProfileToForm();
-        showSetupMode();
-    });
-}
-
-// Database & Flow
-// Database & Flow - (Moved to top)
-
-function checkFirstLaunch() {
-    const transaction = db.transaction(['teachers'], 'readonly');
-    const objectStore = transaction.objectStore('teachers');
-    const request = objectStore.get('teacher_profile');
-
-    request.onsuccess = (event) => {
-        const result = event.target.result;
-        if (result) {
-            // Profile exists -> Load App
-            loadProfileView(result);
-            showAppMode();
-        } else {
-            // No profile -> Show Setup
-            showSetupMode();
-        }
-    };
-}
-
-function saveTeacherProfile(data, onErrorCallback) {
-    if (!db) {
-        alert("Veritabanı bağlantısı yok!");
-        if (onErrorCallback) onErrorCallback();
-        return;
-    }
-
-    try {
-        const transaction = db.transaction(['teachers'], 'readwrite');
-        const objectStore = transaction.objectStore('teachers');
-        const request = objectStore.put(data);
-
-        request.onsuccess = () => {
-            // alert('Profil kaydedildi!'); // Removed alert for smoother flow
-            loadProfileView(data);
-            showAppMode();
-        };
-
-        request.onerror = (e) => {
-            console.error("Save Error:", e.target.error);
-            alert('Kaydetme başarısız! ' + (e.target.error ? e.target.error.message : ''));
-            if (onErrorCallback) onErrorCallback();
-        };
-
-        transaction.onerror = (e) => {
-            console.error("Transaction Error:", e);
-            if (onErrorCallback) onErrorCallback();
-        };
-
-    } catch (e) {
-        console.error("DB Transaction Error:", e);
-        alert("Veritabanı hatası: " + e.message);
-        if (onErrorCallback) onErrorCallback();
-    }
-}
-
-function loadProfileView(data) {
-    document.getElementById('disp-name').textContent = data.name;
-    document.getElementById('disp-branch').textContent = data.branch;
-    document.getElementById('disp-school').textContent = data.school;
-
-    // Gender Text
-    const genders = { 'male': 'Erkek', 'female': 'Kadın', 'none': 'Belirtimiyor', '': 'Belirtilmiyor' };
-    document.getElementById('disp-gender').textContent = genders[data.gender] || '-';
-
-    // Image logic
-    const imgDisp = document.getElementById('profile-img-display');
-    const avatarDisp = document.getElementById('profile-avatar-display');
-
-    if (data.photo) {
-        imgDisp.src = data.photo;
-        imgDisp.style.display = 'block';
-        avatarDisp.style.display = 'none';
-    } else {
-        avatarDisp.textContent = data.avatar || '👨‍🏫';
-        avatarDisp.style.display = 'block';
-        imgDisp.style.display = 'none';
-    }
-}
-
-function showSetupMode() {
-    document.body.classList.add('setup-mode');
-    document.getElementById('view-welcome').classList.add('active');
-    document.querySelector('.bottom-nav').style.display = 'none';
-    document.querySelector('.app-header').style.display = 'none';
-
-    // Hide all other views
-    document.querySelectorAll('.view').forEach(v => {
-        if (v.id !== 'view-welcome') v.classList.remove('active');
-    });
-}
-
-function showAppMode() {
-    document.body.classList.remove('setup-mode');
-    document.getElementById('view-welcome').classList.remove('active');
-    document.querySelector('.bottom-nav').style.display = 'flex';
-    document.querySelector('.app-header').style.display = 'flex';
-
-    // Go to default view
-    document.querySelector('[data-target="view-profile"]').click();
-}
-
-function loadProfileToForm() {
-    const transaction = db.transaction(['teachers'], 'readonly');
-    const objectStore = transaction.objectStore('teachers');
-    const request = objectStore.get('teacher_profile');
-
-    request.onsuccess = (event) => {
-        const data = event.target.result;
-        if (data) {
-            document.getElementById('setup-name').value = data.name;
-            document.getElementById('setup-branch').value = data.branch;
-            document.getElementById('setup-school').value = data.school;
-            document.getElementById('setup-gender').value = data.gender;
-            // Image handling reconstruction is complex for UI, leave simple for now
-        }
-    };
-}
-
-// --- Student Logic ---
-// --- Student Logic ---
-
-function setupStudentLogic() {
-    const btnAddStudent = document.getElementById('btn-add-student');
-    const modalStudent = document.getElementById('modal-student');
-    const formStudent = document.getElementById('form-student');
-    const btnCloseStudent = document.getElementById('btn-close-student-modal');
-
-    if (btnAddStudent) {
-        btnAddStudent.addEventListener('click', () => {
-            openStudentModal();
-        });
-    }
-
-    if (btnCloseStudent) {
-        btnCloseStudent.addEventListener('click', () => {
-            modalStudent.classList.remove('active');
-        });
-    }
-
-    if (formStudent) {
-        formStudent.addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveStudent();
-        });
-    }
-
-    // Photo Upload
-    const photoInput = document.getElementById('student-photo-upload');
-    if (photoInput) {
-        photoInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (evt) {
-                    const img = document.getElementById('student-form-img');
-                    img.src = evt.target.result;
-                    img.style.display = 'block';
-                    document.getElementById('student-form-avatar').style.display = 'none';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    // Tag Selection
-    const tags = document.querySelectorAll('#student-tags .chip');
-    tags.forEach(tag => {
-        tag.addEventListener('click', () => {
-            // Toggle selection (single select logic for simplicity)
-            tags.forEach(t => t.classList.remove('selected'));
-            tag.classList.add('selected');
+    document.querySelectorAll('#student-tags .chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            chip.classList.toggle('selected');
         });
     });
 
-    // Back Buttons
-    const btnBackClass = document.querySelector('#view-class-detail .btn-back');
-    if (btnBackClass) {
-        btnBackClass.addEventListener('click', () => {
-            document.querySelector('[data-target="view-classes"]').click();
-        });
-    }
-
-    const btnBackProfile = document.getElementById('btn-back-from-student');
-    if (btnBackProfile) {
-        btnBackProfile.addEventListener('click', () => {
-            // Return to class detail or alumni based on status
-            // Simple fallback:
-            if (currentClassId) {
-                loadClassDetail(currentClassId);
-                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-                document.getElementById('view-class-detail').classList.add('active');
-                document.querySelector('.app-header').style.display = 'flex';
-                document.querySelector('.bottom-nav').style.display = 'flex';
-            } else {
-                // Might be alumni
-                document.querySelector('[data-target="view-alumni"]').click();
-                document.querySelector('.app-header').style.display = 'flex';
-                document.querySelector('.bottom-nav').style.display = 'flex';
-            }
-        });
-    }
-
-    // Edit Button Logic
-    const btnEditStudent = document.getElementById('btn-edit-student');
-    if (btnEditStudent) {
-        btnEditStudent.addEventListener('click', () => {
-            if (currentStudentId) openStudentModal(currentStudentId);
-        });
-    }
-
-    // Tabs
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-            btn.classList.add('active');
-            const target = btn.getAttribute('data-tab');
-            document.getElementById(target).classList.add('active');
+    document.getElementById('student-search').addEventListener('input', (e) => {
+        const text = e.target.value.toLowerCase();
+        document.querySelectorAll('#student-list .student-card').forEach(card => {
+            const name = card.querySelector('h4').textContent.toLowerCase();
+            card.style.display = name.includes(text) ? 'flex' : 'none';
         });
     });
 
-    // Search
-    const searchInput = document.getElementById('student-search');
-    if (searchInput) searchInput.addEventListener('input', filterStudents);
+    document.getElementById('btn-back-from-student').addEventListener('click', () => {
+        if (currentClassId) loadClassDetail(currentClassId);
+        else navigate('view-alumni', 'Mezunlar');
+    });
 
-    // Setup other modules
-    setupPerformanceLogic();
-    setupAlumniLogic();
-    setupTransitionLogic();
-}
-
-function openStudentModal(studentId = null) {
-    const modal = document.getElementById('modal-student');
-    const form = document.getElementById('form-student');
-
-    form.reset();
-    document.querySelectorAll('#student-tags .chip').forEach(c => c.classList.remove('selected'));
-    document.getElementById('student-form-img').style.display = 'none';
-    document.getElementById('student-form-avatar').style.display = 'block';
-    document.getElementById('student-form-img').src = '';
-
-    if (studentId) {
-        // Edit Mode
-        document.getElementById('modal-student-title').textContent = 'Öğrenci Düzenle';
-        const transaction = db.transaction(['students'], 'readonly');
-        const store = transaction.objectStore('students');
-        store.get(Number(studentId)).onsuccess = (e) => {
+    document.getElementById('btn-edit-student').addEventListener('click', () => {
+        const tx = db.transaction(['students'], 'readonly');
+        tx.objectStore('students').get(currentStudentId).onsuccess = (e) => {
             const s = e.target.result;
             document.getElementById('student-id').value = s.id;
-            document.getElementById('student-class-id').value = s.classId || '';
-            document.getElementById('student-number').value = s.number;
             document.getElementById('student-name').value = s.name;
-
-            if (s.parents) {
-                document.getElementById('student-mother-name').value = s.parents.mother?.name || '';
-                document.getElementById('student-mother-tel').value = s.parents.mother?.tel || '';
-                document.getElementById('student-father-name').value = s.parents.father?.name || '';
-                document.getElementById('student-father-tel').value = s.parents.father?.tel || '';
-            }
-
+            document.getElementById('student-number').value = s.number;
+            document.getElementById('student-mother-name').value = s.parents?.mother?.name || '';
+            document.getElementById('student-mother-tel').value = s.parents?.mother?.tel || '';
+            document.getElementById('student-father-name').value = s.parents?.father?.name || '';
+            document.getElementById('student-father-tel').value = s.parents?.father?.tel || '';
             document.getElementById('student-notes').value = s.notes || '';
 
             if (s.photo) {
-                const img = document.getElementById('student-form-img');
-                img.src = s.photo;
-                img.style.display = 'block';
+                document.getElementById('student-form-img').src = s.photo;
+                document.getElementById('student-form-img').style.display = 'block';
                 document.getElementById('student-form-avatar').style.display = 'none';
             }
 
-            if (s.tags && s.tags.length > 0) {
-                const t = s.tags[0];
-                const chip = document.querySelector(`#student - tags.chip[data - value="${t}"]`);
-                if (chip) chip.classList.add('selected');
-            }
+            document.querySelectorAll('#student-tags .chip').forEach(chip => {
+                if (s.tags && s.tags.includes(chip.getAttribute('data-value'))) chip.classList.add('selected');
+                else chip.classList.remove('selected');
+            });
 
             modal.classList.add('active');
         };
-    } else {
-        // Add Mode
-        document.getElementById('modal-student-title').textContent = 'Öğrenci Ekle';
-        document.getElementById('student-id').value = '';
-        document.getElementById('student-class-id').value = currentClassId;
-        modal.classList.add('active');
-    }
+    });
 }
 
 function saveStudent() {
     const id = document.getElementById('student-id').value;
-    const classId = Number(document.getElementById('student-class-id').value);
-    const number = document.getElementById('student-number').value;
     const name = document.getElementById('student-name').value;
-    const mName = document.getElementById('student-mother-name').value;
-    const mTel = document.getElementById('student-mother-tel').value;
-    const fName = document.getElementById('student-father-name').value;
-    const fTel = document.getElementById('student-father-tel').value;
-    const notes = document.getElementById('student-notes').value;
+    const number = document.getElementById('student-number').value;
+    const classId = Number(document.getElementById('student-class-id').value);
+    const photo = document.getElementById('student-form-img').src;
 
-    const selectedTag = document.querySelector('#student-tags .chip.selected')?.getAttribute('data-value');
+    const selectedTags = Array.from(document.querySelectorAll('#student-tags .chip.selected')).map(c => c.getAttribute('data-value'));
 
-    const imgSrc = document.getElementById('student-form-img').src;
-    const hasImg = document.getElementById('student-form-img').style.display === 'block';
+    const data = {
+        name, number, classId,
+        tags: selectedTags,
+        photo: photo.startsWith('data:') ? photo : null,
+        parents: {
+            mother: { name: document.getElementById('student-mother-name').value, tel: document.getElementById('student-mother-tel').value },
+            father: { name: document.getElementById('student-father-name').value, tel: document.getElementById('student-father-tel').value }
+        },
+        notes: document.getElementById('student-notes').value,
+        teacherNotes: [],
+        exams: []
+    };
 
-    const transaction = db.transaction(['students', 'classes'], 'readwrite');
-    const store = transaction.objectStore('students');
-
-    // We need to fetch existing if editing to preserve some data like performance
     if (id) {
-        const req = store.get(Number(id));
-        req.onsuccess = (e) => {
-            const existing = e.target.result;
-            existing.number = number;
-            existing.name = name;
-            existing.parents = {
-                mother: { name: mName, tel: mTel },
-                father: { name: fName, tel: fTel }
+        data.id = Number(id);
+        const txCheck = db.transaction(['students'], 'readonly');
+        txCheck.objectStore('students').get(data.id).onsuccess = (e) => {
+            const old = e.target.result;
+            data.teacherNotes = old.teacherNotes || [];
+            data.exams = old.exams || [];
+            data.status = old.status;
+            data.gradYear = old.gradYear;
+            data.prevClass = old.prevClass;
+
+            const txUpdate = db.transaction(['students'], 'readwrite');
+            txUpdate.objectStore('students').put(data).onsuccess = () => {
+                document.getElementById('modal-student').classList.remove('active');
+                if (data.status === 'graduated') renderAlumni();
+                else renderStudents(classId);
             };
-            existing.notes = notes;
-            existing.tags = selectedTag ? [selectedTag] : [];
-            if (hasImg && imgSrc) existing.photo = imgSrc;
-            existing.updatedAt = new Date();
-
-            store.put(existing);
-
-            // Refresh View
-            if (currentStudentId == id) loadStudentProfile(id); // Reload profile if active
-            if (currentClassId) loadClassDetail(currentClassId); // Reload list logic if needed, but we might be in profile
-            document.getElementById('modal-student').classList.remove('active');
         };
     } else {
-        // New
-        const student = {
-            classId: classId,
-            number: number,
-            name: name,
-            parents: {
-                mother: { name: mName, tel: mTel },
-                father: { name: fName, tel: fTel }
-            },
-            notes: notes,
-            tags: selectedTag ? [selectedTag] : [],
-            photo: (hasImg && imgSrc) ? imgSrc : null,
-            createdAt: new Date(),
-            status: 'active',
-            teacherNotes: [],
-            exams: []
-        };
-        store.add(student);
-
-        // Update Class Count
-        const classStore = transaction.objectStore('classes');
-        const cReq = classStore.get(classId);
-        cReq.onsuccess = (e) => {
-            const c = e.target.result;
-            c.studentCount = (c.studentCount || 0) + 1;
-            classStore.put(c);
-        };
-
-        transaction.oncomplete = () => {
+        const tx = db.transaction(['students'], 'readwrite');
+        tx.objectStore('students').add(data).onsuccess = () => {
             document.getElementById('modal-student').classList.remove('active');
-            loadClassDetail(classId);
+            renderStudents(classId);
         };
     }
 }
 
-function loadClassDetail(classId) {
-    currentClassId = classId;
-
-    // UI Switch
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-class-detail').classList.add('active');
-
-    // Get Class Name
-    const t = db.transaction(['classes'], 'readonly');
-    t.objectStore('classes').get(Number(classId)).onsuccess = (e) => {
-        const c = e.target.result;
-        document.getElementById('class-detail-title').textContent = `${c.name} Sınıfı`;
-    };
-
-    // Start Print
-    // Note: window.print() is called in renderPrintView
-}
-
-// --- Plans Logic (Step 9) ---
-function setupPlansLogic() {
-    const btnAddPlan = document.getElementById('btn-add-plan');
-    const modalPlan = document.getElementById('modal-plan');
-    const btnClosePlan = document.getElementById('btn-close-plan-modal');
-    const formPlan = document.getElementById('form-plan');
-
-    // Quick Action & Menu Handlers
-    const btnDashPlans = document.getElementById('btn-dash-plans');
-    const btnSettingsPlans = document.getElementById('btn-settings-plans');
-
-    const openPlansView = () => {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById('view-plans').classList.add('active');
-        // Hide bottom nav/header if desired, but nice to keep header
-        document.querySelector('.app-header').style.display = 'flex';
-        renderPlans('yearly'); // Default
-        document.querySelector('.tab-btn[data-tab="plan-yearly"]').click();
-    };
-
-    if (btnDashPlans) btnDashPlans.addEventListener('click', openPlansView);
-    if (btnSettingsPlans) btnSettingsPlans.addEventListener('click', openPlansView);
-
-    if (btnAddPlan) btnAddPlan.addEventListener('click', () => {
-        document.getElementById('plan-id').value = '';
-        document.getElementById('form-plan').reset();
-        modalPlan.classList.add('active');
-    });
-
-    if (btnClosePlan) btnClosePlan.addEventListener('click', () => modalPlan.classList.remove('active'));
-
-    // Tab switching
-    const tabs = document.querySelectorAll('.student-profile-tabs .tab-btn');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            if (tab.getAttribute('data-tab').startsWith('plan-')) {
-                tabs.forEach(t => {
-                    if (t.getAttribute('data-tab').startsWith('plan-')) t.classList.remove('active');
-                });
-                tab.classList.add('active');
-                const type = tab.getAttribute('data-tab') === 'plan-yearly' ? 'yearly' : 'weekly';
-                renderPlans(type);
-            }
-        });
-    });
-
-    if (formPlan) {
-        formPlan.addEventListener('submit', (e) => {
-            e.preventDefault();
-            savePlan();
-        });
-    }
-}
-
-function savePlan() {
-    const title = document.getElementById('plan-title').value;
-    const type = document.getElementById('plan-type').value;
-    const fileInput = document.getElementById('plan-file');
-
-    if (!title || fileInput.files.length === 0) return;
-
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-        // Blob for storage
-        const blob = new Blob([new Uint8Array(e.target.result)], { type: file.type });
-
-        const plan = {
-            title: title,
-            type: type,
-            fileName: file.name,
-            fileType: file.type,
-            fileData: blob,
-            createdAt: new Date()
-        };
-
-        const transaction = db.transaction(['plans'], 'readwrite');
-        const store = transaction.objectStore('plans');
-        store.add(plan);
-
-        transaction.oncomplete = () => {
-            alert("Plan kaydedildi.");
-            document.getElementById('modal-plan').classList.remove('active');
-            renderPlans(type);
-        };
-    };
-
-    reader.readAsArrayBuffer(file);
-}
-
-function renderPlans(type) {
-    const list = document.getElementById('plan-list-container');
+function renderStudents(classId) {
+    const list = document.getElementById('student-list');
     list.innerHTML = '';
 
-    const transaction = db.transaction(['plans'], 'readonly');
-    const store = transaction.objectStore('plans');
-    const idx = store.index('type'); // Use index
-    const req = idx.openCursor(IDBKeyRange.only(type));
+    const tx = db.transaction(['students'], 'readonly');
+    const index = tx.objectStore('students').index('classId');
+    index.getAll(classId).onsuccess = (e) => {
+        const students = e.target.result;
+        if (students.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>Bu sınıfta öğrenci yok.</p></div>';
+            return;
+        }
 
-    let hasPlans = false;
-
-    req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            hasPlans = true;
-            const p = cursor.value;
-
+        students.forEach(s => {
             const card = document.createElement('div');
-            card.className = 'info-card';
-            card.style.display = 'flex';
-            card.style.justifyContent = 'space-between';
-            card.style.alignItems = 'center';
-            card.style.marginBottom = '10px';
-
-            const icon = p.fileType.includes('image') ? '🖼️' : '📄';
-
+            card.className = 'student-card';
+            let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
             card.innerHTML = `
-                <div style="display:flex; align-items:center;">
-                    <span style="font-size:1.5rem; margin-right:15px;">${icon}</span>
-                    <div>
-                        <h4 style="margin:0; font-size:1rem;">${p.title}</h4>
-                        <p style="margin:0; font-size:0.8rem; color:#888;">${p.fileName}</p>
-                    </div>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-icon" style="color:#4a90e2; font-size:1.2rem;">📂</button>
-                    <button class="btn-icon delete-plan-btn" style="color:#e74c3c;">🗑️</button>
+                ${avatar}
+                <div class="student-info">
+                    <h4>${s.name}</h4>
+                    <p>No: ${s.number}</p>
                 </div>
             `;
-
-            // Open
-            card.querySelector('.btn-icon').addEventListener('click', () => {
-                const url = URL.createObjectURL(p.fileData);
-                window.open(url, '_blank');
-            });
-
-            // Delete
-            card.querySelector('.delete-plan-btn').addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                if (confirm('Plan silinsin mi?')) {
-                    const t2 = db.transaction(['plans'], 'readwrite');
-                    t2.objectStore('plans').delete(p.id);
-                    t2.oncomplete = () => renderPlans(type);
-                }
-            });
-
+            card.onclick = () => loadStudentProfile(s.id);
             list.appendChild(card);
-
-            cursor.continue();
-        } else {
-            if (!hasPlans) list.innerHTML = '<div class="empty-state-small">Bu kategori için plan yok.</div>';
-        }
+        });
     };
-}
-
-// --- Settings Logic ---
-function setupSettingsLogic() {
-    // Theme
-    const btnTheme = document.getElementById('btn-settings-theme');
-    const modalTheme = document.getElementById('modal-theme');
-    const btnCloseTheme = document.getElementById('btn-close-theme-modal');
-
-    if (btnTheme) btnTheme.addEventListener('click', () => modalTheme.classList.add('active'));
-    if (btnCloseTheme) btnCloseTheme.addEventListener('click', () => modalTheme.classList.remove('active'));
-
-    const themeOpts = document.querySelectorAll('.theme-option');
-    themeOpts.forEach(opt => {
-        opt.addEventListener('click', () => {
-            const theme = opt.getAttribute('data-theme');
-            applyTheme(theme);
-            modalTheme.classList.remove('active');
-        });
-    });
-
-    // Info
-    const btnInfo = document.getElementById('btn-settings-info');
-    if (btnInfo) {
-        btnInfo.addEventListener('click', () => {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('view-info').classList.add('active');
-            document.querySelector('.app-header').style.display = 'flex';
-        });
-    }
-
-    // Reset
-    const btnReset = document.getElementById('btn-reset-data');
-    if (btnReset) {
-        btnReset.addEventListener('click', resetAppData);
-    }
-}
-
-function applyTheme(themeName) {
-    document.body.classList.remove('theme-green', 'theme-dark');
-    if (themeName === 'green') document.body.classList.add('theme-green');
-    if (themeName === 'dark') document.body.classList.add('theme-dark');
-    localStorage.setItem('app-theme', themeName);
-}
-
-function resetAppData() {
-    if (confirm('UYARI: Tüm veriler silinecek ve uygulama sıfırlanacak. Bu işlem geri alınamaz!')) {
-        if (confirm('Son kez soruyorum: Emin misiniz?')) {
-            const req = indexedDB.deleteDatabase(DB_NAME);
-            req.onsuccess = () => {
-                localStorage.clear();
-                location.reload();
-            };
-        }
-    }
-}
-const container = document.getElementById('student-list');
-container.innerHTML = '';
-
-const ts = db.transaction(['students'], 'readonly');
-const req = ts.objectStore('students').openCursor();
-
-let hasStudents = false;
-
-req.onsuccess = (e) => {
-    const cursor = e.target.result;
-    if (cursor) {
-        const s = cursor.value;
-        if (s.classId == classId && s.status !== 'graduated') {
-            hasStudents = true;
-            const el = document.createElement('div');
-            el.className = 'student-card';
-            el.setAttribute('data-name', s.name.toLowerCase());
-
-            let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
-
-            el.innerHTML = `
-                    ${avatar}
-                    <div class="student-info">
-                        <h4>${s.name}</h4>
-                        <p>${s.number}</p>
-                    </div>
-                    <div class="student-arrow">›</div>
-`;
-
-            el.addEventListener('click', () => loadStudentProfile(s.id));
-            container.appendChild(el);
-        }
-        cursor.continue();
-    } else {
-        if (!hasStudents) container.innerHTML = '<div class="empty-state"><p>Bu sınıfta öğrenci yok.</p></div>';
-    }
-};
-}
-
-function filterStudents() {
-    const term = document.getElementById('student-search').value.toLowerCase();
-    const cards = document.querySelectorAll('#student-list .student-card');
-    cards.forEach(c => {
-        const name = c.getAttribute('data-name');
-        if (name.includes(term)) c.style.display = 'flex';
-        else c.style.display = 'none';
-    });
 }
 
 function loadStudentProfile(studentId, readOnly = false) {
     currentStudentId = studentId;
-
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelector('.bottom-nav').style.display = 'none';
-    document.querySelector('.app-header').style.display = 'none';
-    document.getElementById('view-student-profile').classList.add('active');
-
-    const btnEdit = document.getElementById('btn-edit-student');
-    const btnAddNote = document.getElementById('btn-add-note');
-    const btnAddExam = document.getElementById('btn-add-exam');
-
-    if (readOnly || (arguments.length > 1 && readOnly)) { // Ensure readOnly handled
-        if (btnEdit) btnEdit.style.display = 'none';
-        if (btnAddNote) btnAddNote.style.display = 'none';
-        if (btnAddExam) btnAddExam.style.display = 'none';
-    } else {
-        if (btnEdit) btnEdit.style.display = 'block';
-        if (btnAddNote) btnAddNote.style.display = 'flex';
-        if (btnAddExam) btnAddExam.style.display = 'flex';
-    }
-
-    // PDF Button Listener (Dynamic binding)
-    const btnPDF = document.getElementById('btn-create-pdf');
-    if (btnPDF) {
-        // Clone to remove old listeners
-        const newBtn = btnPDF.cloneNode(true);
-        btnPDF.parentNode.replaceChild(newBtn, btnPDF);
-        newBtn.addEventListener('click', generatePDF);
-    }
-
-    const trans = db.transaction(['students'], 'readonly');
-    const store = trans.objectStore('students');
-    store.get(Number(studentId)).onsuccess = (e) => {
+    const tx = db.transaction(['students'], 'readonly');
+    tx.objectStore('students').get(studentId).onsuccess = (e) => {
         const s = e.target.result;
-
         document.getElementById('std-profile-name').textContent = s.name;
-        document.getElementById('std-profile-no').textContent = s.status === 'graduated' ? (s.gradYear + ' Mezunu') : s.number;
+        document.getElementById('std-profile-no').textContent = 'Öğrenci No: ' + s.number;
 
-        const heroAvatar = document.getElementById('std-profile-avatar');
-        const heroImg = document.getElementById('std-profile-img');
-
+        const avatarDisp = document.getElementById('std-profile-avatar');
+        const imgDisp = document.getElementById('std-profile-img');
         if (s.photo) {
-            heroImg.src = s.photo;
-            heroImg.style.display = 'block';
-            heroAvatar.style.display = 'none';
+            imgDisp.src = s.photo;
+            imgDisp.style.display = 'block';
+            avatarDisp.style.display = 'none';
         } else {
-            heroAvatar.style.display = 'block';
-            heroImg.style.display = 'none';
+            avatarDisp.style.display = 'block';
+            imgDisp.style.display = 'none';
         }
 
-        const tagsContainer = document.getElementById('std-profile-tags');
-        tagsContainer.innerHTML = '';
+        // Tags
+        const tagCont = document.getElementById('std-profile-tags');
+        tagCont.innerHTML = '';
         if (s.tags) {
-            const labels = { success: 'Başarılı', follow: 'Takip', support: 'Destek', passive: 'Pasif' };
-            const colors = { success: '#d1fae5', follow: '#fee2e2', support: '#fef3c7', passive: '#f3f4f6' };
-            const textColors = { success: '#065f46', follow: '#991b1b', support: '#92400e', passive: '#1f2937' };
-
             s.tags.forEach(t => {
-                const sp = document.createElement('span');
-                sp.className = 'tag-badge';
-                sp.textContent = labels[t] || t;
-                sp.style.background = colors[t] || '#eee';
-                sp.style.color = textColors[t] || '#333';
-                tagsContainer.appendChild(sp);
+                const span = document.createElement('span');
+                span.className = 'tag-badge';
+                span.textContent = t;
+                tagCont.appendChild(span);
             });
         }
 
@@ -1221,129 +539,87 @@ function loadStudentProfile(studentId, readOnly = false) {
 
         renderNotes(s.teacherNotes, readOnly);
         renderExams(s.exams, readOnly);
+        navigate('view-student-profile');
+
+        // Toggle add buttons based on readOnly
+        document.getElementById('btn-add-note').style.display = readOnly ? 'none' : 'flex';
+        document.getElementById('btn-add-exam').style.display = readOnly ? 'none' : 'flex';
+        document.getElementById('btn-edit-student').style.display = readOnly ? 'none' : 'block';
     };
 }
 
-// --- Performance Logic ---
+// --- Performance (Notes/Exams) ---
 function setupPerformanceLogic() {
-    const modalNote = document.getElementById('modal-note');
-    const formNote = document.getElementById('form-note');
-    const btnAddNote = document.getElementById('btn-add-note');
-    const btnCloseNote = document.getElementById('btn-close-note-modal');
+    document.getElementById('btn-close-note-modal').onclick = () => document.getElementById('modal-note').classList.remove('active');
+    document.getElementById('btn-close-exam-modal').onclick = () => document.getElementById('modal-exam').classList.remove('active');
 
-    if (btnAddNote) {
-        btnAddNote.addEventListener('click', () => {
-            document.getElementById('form-note').reset();
-            document.getElementById('note-student-id').value = currentStudentId;
-            document.getElementById('note-date').valueAsDate = new Date();
-            modalNote.classList.add('active');
-        });
-    }
+    document.getElementById('btn-add-note').onclick = () => {
+        document.getElementById('form-note').reset();
+        document.getElementById('note-student-id').value = currentStudentId;
+        document.getElementById('note-date').valueAsDate = new Date();
+        document.getElementById('modal-note').classList.add('active');
+    };
 
-    if (btnCloseNote) btnCloseNote.addEventListener('click', () => modalNote.classList.remove('active'));
-    if (formNote) {
-        formNote.addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveNote();
-        });
-    }
+    document.getElementById('btn-add-exam').onclick = () => {
+        document.getElementById('form-exam').reset();
+        document.getElementById('exam-student-id').value = currentStudentId;
+        document.getElementById('exam-date').valueAsDate = new Date();
+        document.getElementById('modal-exam').classList.add('active');
+    };
 
-    const modalExam = document.getElementById('modal-exam');
-    const formExam = document.getElementById('form-exam');
-    const btnAddExam = document.getElementById('btn-add-exam');
-    const btnCloseExam = document.getElementById('btn-close-exam-modal');
+    document.getElementById('form-note').onsubmit = (e) => {
+        e.preventDefault();
+        saveNote();
+    };
 
-    if (btnAddExam) {
-        btnAddExam.addEventListener('click', () => {
-            document.getElementById('form-exam').reset();
-            document.getElementById('exam-student-id').value = currentStudentId;
-            document.getElementById('exam-date').valueAsDate = new Date();
-            modalExam.classList.add('active');
-        });
-    }
-    if (btnCloseExam) btnCloseExam.addEventListener('click', () => modalExam.classList.remove('active'));
-    if (formExam) {
-        formExam.addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveExam();
-        });
-    }
+    document.getElementById('form-exam').onsubmit = (e) => {
+        e.preventDefault();
+        saveExam();
+    };
+
+    // Tab switching student profile
+    document.querySelectorAll('#view-student-profile .tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#view-student-profile .tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#view-student-profile .tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+        };
+    });
 }
 
 function saveNote() {
     const sId = Number(document.getElementById('note-student-id').value);
-    const date = document.getElementById('note-date').value;
     const text = document.getElementById('note-text').value;
+    const date = document.getElementById('note-date').value;
 
-    if (!text) return;
-
-    const transaction = db.transaction(['students'], 'readwrite');
-    const store = transaction.objectStore('students');
-    const req = store.get(sId);
-
-    req.onsuccess = (e) => {
-        const student = e.target.result;
-        if (!student.teacherNotes) student.teacherNotes = [];
-
-        student.teacherNotes.unshift({
-            id: Date.now(),
-            date: date,
-            text: text,
-            createdAt: new Date()
-        });
-
-        store.put(student).onsuccess = () => {
+    const tx = db.transaction(['students'], 'readwrite');
+    const store = tx.objectStore('students');
+    store.get(sId).onsuccess = (e) => {
+        const s = e.target.result;
+        if (!s.teacherNotes) s.teacherNotes = [];
+        s.teacherNotes.unshift({ id: Date.now(), text, date });
+        store.put(s).onsuccess = () => {
             document.getElementById('modal-note').classList.remove('active');
-            renderNotes(student.teacherNotes);
+            renderNotes(s.teacherNotes);
         };
-    };
-}
-
-function deleteNote(noteId) {
-    if (!confirm('Not silinsin mi?')) return;
-    const transaction = db.transaction(['students'], 'readwrite');
-    const store = transaction.objectStore('students');
-    const req = store.get(Number(currentStudentId));
-
-    req.onsuccess = (e) => {
-        const student = e.target.result;
-        if (student.teacherNotes) {
-            student.teacherNotes = student.teacherNotes.filter(n => n.id !== noteId);
-            store.put(student).onsuccess = () => {
-                renderNotes(student.teacherNotes);
-            };
-        }
     };
 }
 
 function renderNotes(notes, readOnly) {
     const list = document.getElementById('notes-list');
     list.innerHTML = '';
-
     if (!notes || notes.length === 0) {
-        list.innerHTML = '<div class="empty-state-small">Henüz not eklenmedi.</div>';
+        list.innerHTML = '<div class="empty-state-small">Not bulunmuyor.</div>';
         return;
     }
-
     notes.forEach(n => {
         const item = document.createElement('div');
         item.className = 'timeline-item';
-        const d = new Date(n.date);
-        const dateStr = d.toLocaleDateString('tr-TR');
-
-        let delBtn = readOnly ? '' : '<button class="btn-delete-item">🗑️</button>';
-
         item.innerHTML = `
-    < div class="timeline-date" > ${dateStr}</div >
-        <div class="timeline-content">
-            ${n.text}
-            ${delBtn}
-        </div>
-`;
-
-        if (!readOnly) {
-            item.querySelector('.btn-delete-item').addEventListener('click', () => deleteNote(n.id));
-        }
+            <div class="timeline-date">${new Date(n.date).toLocaleDateString('tr-TR')}</div>
+            <div class="timeline-content">${n.text}</div>
+        `;
         list.appendChild(item);
     });
 }
@@ -1354,623 +630,294 @@ function saveExam() {
     const date = document.getElementById('exam-date').value;
     const score = Number(document.getElementById('exam-score').value);
 
-    if (!name) return;
-
-    const transaction = db.transaction(['students'], 'readwrite');
-    const store = transaction.objectStore('students');
-    const req = store.get(sId);
-
-    req.onsuccess = (e) => {
-        const student = e.target.result;
-        if (!student.exams) student.exams = [];
-
-        student.exams.push({
-            id: Date.now(),
-            name: name,
-            date: date,
-            score: score
-        });
-
-        store.put(student).onsuccess = () => {
+    const tx = db.transaction(['students'], 'readwrite');
+    const store = tx.objectStore('students');
+    store.get(sId).onsuccess = (e) => {
+        const s = e.target.result;
+        if (!s.exams) s.exams = [];
+        s.exams.push({ id: Date.now(), name, date, score });
+        store.put(s).onsuccess = () => {
             document.getElementById('modal-exam').classList.remove('active');
-            renderExams(student.exams);
+            renderExams(s.exams);
         };
-    };
-}
-
-function deleteExam(examId) {
-    if (!confirm('Sınav notu silinsin mi?')) return;
-
-    const transaction = db.transaction(['students'], 'readwrite');
-    const store = transaction.objectStore('students');
-    const req = store.get(Number(currentStudentId));
-
-    req.onsuccess = (e) => {
-        const student = e.target.result;
-        if (student.exams) {
-            student.exams = student.exams.filter(ex => ex.id !== examId);
-            store.put(student).onsuccess = () => {
-                renderExams(student.exams);
-            };
-        }
     };
 }
 
 function renderExams(exams, readOnly) {
     const list = document.getElementById('exams-list');
-    const avgDisplay = document.getElementById('exam-average');
     list.innerHTML = '';
-
+    const avgVal = document.getElementById('exam-average');
     if (!exams || exams.length === 0) {
-        list.innerHTML = '<div class="empty-state-small">Henüz sınav girilmedi.</div>';
-        avgDisplay.textContent = '-';
+        list.innerHTML = '<div class="empty-state-small">Sınav bulunmuyor.</div>';
+        avgVal.textContent = '-';
         return;
     }
-
-    let total = 0;
+    let sum = 0;
     exams.forEach(ex => {
-        total += ex.score;
+        sum += ex.score;
         const item = document.createElement('div');
         item.className = 'exam-item';
-        const d = new Date(ex.date);
-        const dateStr = d.toLocaleDateString('tr-TR');
-
-        let scoreClass = 'score-mid';
-        if (ex.score >= 85) scoreClass = 'score-high';
-        if (ex.score < 50) scoreClass = 'score-low';
-
-        let delBtn = readOnly ? '' : '<button class="btn-delete-item" style="position:static;">🗑️</button>';
-
         item.innerHTML = `
-    < div class="exam-info" >
-                <h4>${ex.name}</h4>
-                <span>${dateStr}</span>
-            </div >
-    <div style="display:flex; align-items:center;">
-        <div class="exam-score ${scoreClass}">${ex.score}</div>
-        ${delBtn}
-    </div>
-`;
-        if (!readOnly) {
-            item.querySelector('.btn-delete-item').addEventListener('click', () => deleteExam(ex.id));
-        }
+            <div class="exam-info"><h4>${ex.name}</h4><span>${new Date(ex.date).toLocaleDateString('tr-TR')}</span></div>
+            <div class="exam-score">${ex.score}</div>
+        `;
         list.appendChild(item);
     });
-
-    const avg = (total / exams.length).toFixed(1);
-    avgDisplay.textContent = avg;
+    avgVal.textContent = (sum / exams.length).toFixed(1);
 }
 
 // --- Alumni Logic ---
 function setupAlumniLogic() {
-    const searchInput = document.getElementById('alumni-search');
-    const yearSelect = document.getElementById('alumni-year-filter');
-    const btnAlumni = document.querySelector('[data-target="view-alumni"]');
-
-    if (btnAlumni) {
-        btnAlumni.addEventListener('click', () => renderAlumni());
-    }
-
-    if (searchInput) searchInput.addEventListener('input', filterAlumni);
-    if (yearSelect) yearSelect.addEventListener('change', filterAlumni);
-
-    // Populate Years
-    const currentYear = new Date().getFullYear();
-    for (let i = 0; i < 5; i++) {
-        const opt = document.createElement('option');
-        opt.value = currentYear - i;
-        opt.textContent = currentYear - i;
-        yearSelect.appendChild(opt);
-    }
+    document.getElementById('alumni-search').oninput = filterAlumni;
+    document.getElementById('alumni-year-filter').onchange = filterAlumni;
 }
 
 function renderAlumni() {
     const list = document.getElementById('alumni-list');
     list.innerHTML = '';
-
-    const trans = db.transaction(['students'], 'readonly');
-    const store = trans.objectStore('students');
-    const request = store.openCursor();
-
-    let hasAlumni = false;
-
-    request.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            if (cursor.value.status === 'graduated') {
-                hasAlumni = true;
-                const s = cursor.value;
-                const el = document.createElement('div');
-                el.className = 'student-card alumni-card';
-                el.setAttribute('data-name', s.name.toLowerCase());
-                el.setAttribute('data-year', s.gradYear || '');
-
-                let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
-
-                el.innerHTML = `
-                    ${avatar}
-<div class="student-info">
-    <h4>${s.name}</h4>
-    <p>${s.gradYear || '-'} Mezunu • ${s.prevClass || ''}</p>
-</div>
-`;
-
-                el.addEventListener('click', () => {
-                    loadStudentProfile(s.id, true);
-                });
-
-                list.appendChild(el);
-            }
-            cursor.continue();
-        } else {
-            if (!hasAlumni) list.innerHTML = '<div class="empty-state"><p>Henüz mezun öğrenci yok.</p></div>';
+    const tx = db.transaction(['students'], 'readonly');
+    tx.objectStore('students').getAll().onsuccess = (e) => {
+        const students = e.target.result.filter(s => s.status === 'graduated');
+        if (students.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>Henüz mezun öğrenci yok.</p></div>';
+            return;
         }
+        students.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'student-card alumni-card';
+            card.setAttribute('data-name', s.name.toLowerCase());
+            card.setAttribute('data-year', s.gradYear);
+            card.innerHTML = `<div class="student-list-avatar">🎓</div><div class="student-info"><h4>${s.name}</h4><p>${s.gradYear} Mezunu</p></div>`;
+            card.onclick = () => loadStudentProfile(s.id, true);
+            list.appendChild(card);
+        });
     };
 }
 
 function filterAlumni() {
-    const text = document.getElementById('alumni-search').value.toLowerCase();
-    const year = document.getElementById('alumni-year-filter').value;
-
-    const cards = document.querySelectorAll('.alumni-card');
-    cards.forEach(c => {
-        const name = c.getAttribute('data-name');
-        const cYear = c.getAttribute('data-year');
-
-        const matchText = name.includes(text);
-        const matchYear = year === '' || cYear == year;
-
-        if (matchText && matchYear) c.style.display = 'flex';
-        else c.style.display = 'none';
+    const txt = document.getElementById('alumni-search').value.toLowerCase();
+    const yr = document.getElementById('alumni-year-filter').value;
+    document.querySelectorAll('.alumni-card').forEach(c => {
+        const matchTxt = c.getAttribute('data-name').includes(txt);
+        const matchYr = yr === "" || c.getAttribute('data-year') === yr;
+        c.style.display = (matchTxt && matchYr) ? 'flex' : 'none';
     });
 }
 
-// --- Transition Logic ---
+// --- Transition / Education Year ---
 function setupTransitionLogic() {
-    const btnSettings = document.getElementById('btn-year-transition');
-    const modal = document.getElementById('modal-transition');
-    const btnConfirm = document.getElementById('btn-confirm-transition');
-    const btnCancel = document.getElementById('btn-cancel-transition');
-
-    if (btnSettings) {
-        btnSettings.addEventListener('click', () => {
-            modal.classList.add('active');
-        });
-    }
-
-    if (btnCancel) {
-        btnCancel.addEventListener('click', () => {
-            modal.classList.remove('active');
-        });
-    }
-
-    // Fix: Ensure close braces for setupTransitionLogic and performYearTransition
-    // Then add PDF Logic
-
-    if (btnConfirm) {
-        btnConfirm.addEventListener('click', () => {
-            performYearTransition();
-            modal.classList.remove('active');
-        });
-    }
+    document.getElementById('btn-year-transition').onclick = () => document.getElementById('modal-transition').classList.add('active');
+    document.getElementById('btn-cancel-transition').onclick = () => document.getElementById('modal-transition').classList.remove('active');
+    document.getElementById('btn-confirm-transition').onclick = performYearTransition;
 }
 
 function performYearTransition() {
-    const transaction = db.transaction(['classes', 'students'], 'readwrite');
-    const classStore = transaction.objectStore('classes');
-    const studentStore = transaction.objectStore('students');
+    const tx = db.transaction(['classes', 'students'], 'readwrite');
+    const cStore = tx.objectStore('classes');
+    const sStore = tx.objectStore('students');
+    const currentYear = new Date().getFullYear();
 
-    const classesRequest = classStore.getAll();
-
-    classesRequest.onsuccess = (e) => {
+    cStore.getAll().onsuccess = (e) => {
         const classes = e.target.result;
-        const level12ClassIds = new Set();
-        const updates = [];
+        const gradIds = classes.filter(c => Number(c.level) >= 12).map(c => c.id);
 
         classes.forEach(c => {
             const lvl = Number(c.level);
-            if (lvl === 12) {
-                level12ClassIds.add(c.id);
-                classStore.delete(c.id);
-            } else if ([9, 10, 11].includes(lvl)) {
+            if (lvl >= 12) cStore.delete(c.id);
+            else {
                 c.level = (lvl + 1).toString();
-                // Name replace safe logic
-                const oldLvl = lvl.toString();
-                const newLvl = c.level;
-
-                // Smart replace: 9-A -> 10-A
-                if (c.name.includes(oldLvl)) {
-                    c.name = c.name.replace(oldLvl, newLvl);
-                }
-                classStore.put(c);
+                c.name = c.name.replace(lvl.toString(), c.level);
+                cStore.put(c);
             }
         });
 
-        const studentReq = studentStore.openCursor();
-        const currentYear = new Date().getFullYear();
-
-        studentReq.onsuccess = (ev) => {
-            const cursor = ev.target.result;
-            if (cursor) {
-                const s = cursor.value;
-                if (s.classId && level12ClassIds.has(s.classId)) {
+        sStore.getAll().onsuccess = (ev) => {
+            const students = ev.target.result;
+            students.forEach(s => {
+                if (s.classId && gradIds.includes(s.classId)) {
                     s.status = 'graduated';
                     s.gradYear = currentYear;
-                    const cls = classes.find(c => c.id === s.classId);
-                    s.prevClass = cls ? cls.name : '';
+                    s.prevClass = classes.find(c => c.id === s.classId)?.name || '';
                     s.classId = null;
-                    cursor.update(s);
+                    sStore.put(s);
                 }
-                cursor.continue();
-            }
+            });
         };
     };
 
-    transaction.oncomplete = () => {
-        alert("Yeni eğitim yılı başarıyla oluşturuldu.");
+    tx.oncomplete = () => {
+        alert("Eğitim yılı geçişi tamamlandı.");
+        document.getElementById('modal-transition').classList.remove('active');
         renderClasses();
-    };
-} // End performYearTransition
-
-// --- PDF / Print Logic (Step 8) ---
-function setupPDFLogic() {
-    // We attach this to a generated button inside the profile view
-    // Since the button might be dynamic, we delegate or bind when profile loads.
-    // 'loadStudentProfile' is responsible for showing the button
-}
-
-function generatePDF() {
-    if (!currentStudentId) return;
-
-    // 1. Fetch Data (Student + Teacher)
-    const transaction = db.transaction(['students', 'teachers', 'classes'], 'readonly');
-
-    let teacher = { name: 'Öğretmen', school: 'Okul', branch: 'Branş' };
-    let student = null;
-    let studentClass = '';
-
-    const tStore = transaction.objectStore('teachers');
-    const sStore = transaction.objectStore('students');
-    const cStore = transaction.objectStore('classes');
-
-    // Callback Hell Avoidance: simple state machine
-    let reqCount = 0;
-
-    const checkDone = () => {
-        if (reqCount === 3) {
-            renderPrintView(teacher, student, studentClass);
-        }
-    };
-
-    tStore.get('teacher_profile').onsuccess = (e) => {
-        if (e.target.result) teacher = e.target.result;
-        reqCount++;
-        checkDone();
-    };
-
-    sStore.get(Number(currentStudentId)).onsuccess = (e) => {
-        student = e.target.result;
-
-        // If student exists, get class
-        if (student && student.classId) {
-            cStore.get(student.classId).onsuccess = (ev) => {
-                if (ev.target.result) studentClass = ev.target.result.name;
-                reqCount++; // Class done
-                reqCount++; // Student done (logical grouping)
-                checkDone();
-            };
-        } else {
-            if (student && student.prevClass) studentClass = student.prevClass + ' (Mezun)';
-            reqCount += 2;
-            checkDone();
-        }
+        renderAlumni();
     };
 }
 
-function renderPrintView(teacher, student, className) {
-    const printArea = document.getElementById('print-area');
-
-    // Format Date
-    const today = new Date().toLocaleDateString('tr-TR');
-
-    // Performance
-    let examsHtml = '<p>Sınav notu bulunmamaktadır.</p>';
-    if (student.exams && student.exams.length > 0) {
-        let rows = student.exams.map(e => `< tr ><td>${e.name}</td><td>${new Date(e.date).toLocaleDateString('tr-TR')}</td><td><strong>${e.score}</strong></td></tr > `).join('');
-        // Calc Avg
-        const avg = (student.exams.reduce((a, b) => a + b.score, 0) / student.exams.length).toFixed(1);
-        examsHtml = `
-    < table class="print-table" >
-                <thead><tr><th>Sınav</th><th>Tarih</th><th>Puan</th></tr></thead>
-                <tbody>${rows}</tbody>
-                <tfoot><tr><td colspan="2">Ortalama</td><td>${avg}</td></tr></tfoot>
-            </table >
-    `;
-    }
-
-    // Notes
-    let notesHtml = '<p>Öğretmen notu bulunmamaktadır.</p>';
-    if (student.teacherNotes && student.teacherNotes.length > 0) {
-        notesHtml = `< ul class="print-notes" > ` + student.teacherNotes.map(n => `
-    < li >
-                <span class="note-date">${new Date(n.date).toLocaleDateString('tr-TR')}</span>
-                <p>${n.text}</p>
-            </li >
-    `).join('') + `</ul > `;
-    }
-
-    // Avatar/Photo
-    let imgHtml = '<div class="print-avatar-placeholder">🎓</div>';
-    if (student.photo) {
-        imgHtml = `<img src="${student.photo}" class="print-avatar">`;
-    }
-
-    const html = `
-    <div class="print-header">
-            <div class="print-school-info">
-                <h1>${teacher.school || 'Okul Adı Yok'}</h1>
-                <p>${teacher.name} - ${teacher.branch}</p>
-            </div>
-            <div class="print-date">${today}</div>
-        </div>
-        
-        <div class="print-student-info">
-            <div class="print-student-photo">${imgHtml}</div>
-            <div class="print-student-details">
-                <h2>${student.name}</h2>
-                <div class="print-meta-grid">
-                    <div><span>Numara:</span> ${student.number}</div>
-                    <div><span>Sınıf:</span> ${className || 'Belirtilmemiş'}</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="print-section">
-            <h3>📈 Sınav Başarısı</h3>
-            ${examsHtml}
-        </div>
-
-        <div class="print-section">
-            <h3>📝 Öğretmen Notları</h3>
-            ${notesHtml}
-        </div>
-
-        <div class="print-section">
-            <h3>ℹ️ Genel Bilgiler</h3>
-            <p>${student.notes || 'Ek bilgi yok.'}</p>
-        </div>
-
-        <div class="print-footer">
-            <p>Bu belge öğretmen tarafından hazırlanmıştır.</p>
-            <p>Kişisel veri içerir.</p>
-        </div>
-`;
-
-    printArea.innerHTML = html;
-
-    // Trigger Print
-    setTimeout(() => {
-        window.print();
-    }, 200); // Slight delay for DOM render
-}
-
-// --- Plans Logic (Step 9) ---
+// --- Plans Logic ---
 function setupPlansLogic() {
-    const btnAddPlan = document.getElementById('btn-add-plan');
-    const modalPlan = document.getElementById('modal-plan');
-    const btnClosePlan = document.getElementById('btn-close-plan-modal');
-    const formPlan = document.getElementById('form-plan');
+    document.getElementById('btn-dash-plans').onclick = () => navigate('view-plans', 'Planlarım');
+    document.getElementById('btn-settings-plans').onclick = () => navigate('view-plans', 'Planlarım');
+    document.getElementById('btn-add-plan').onclick = () => {
+        document.getElementById('form-plan').reset();
+        document.getElementById('plan-id').value = '';
+        document.getElementById('modal-plan').classList.add('active');
+    };
+    document.getElementById('btn-close-plan-modal').onclick = () => document.getElementById('modal-plan').classList.remove('active');
 
-    // Quick Action & Menu Handlers
-    const btnDashPlans = document.getElementById('btn-dash-plans');
-    const btnSettingsPlans = document.getElementById('btn-settings-plans');
-
-    const openPlansView = () => {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById('view-plans').classList.add('active');
-        // Hide bottom nav/header if desired, but nice to keep header
-        document.querySelector('.app-header').style.display = 'flex';
-        renderPlans('yearly'); // Default
-        document.querySelector('.tab-btn[data-tab="plan-yearly"]').click();
+    document.getElementById('form-plan').onsubmit = (e) => {
+        e.preventDefault();
+        savePlan();
     };
 
-    if (btnDashPlans) btnDashPlans.addEventListener('click', openPlansView);
-    if (btnSettingsPlans) btnSettingsPlans.addEventListener('click', openPlansView);
-
-    if (btnAddPlan) btnAddPlan.addEventListener('click', () => {
-        document.getElementById('plan-id').value = '';
-        document.getElementById('form-plan').reset();
-        modalPlan.classList.add('active');
+    // Tab switching plans
+    document.querySelectorAll('#view-plans .tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#view-plans .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPlans();
+        };
     });
-
-    if (btnClosePlan) btnClosePlan.addEventListener('click', () => modalPlan.classList.remove('active'));
-
-    // Tab switching
-    const tabs = document.querySelectorAll('.student-profile-tabs .tab-btn');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            if (tab.getAttribute('data-tab').startsWith('plan-')) {
-                tabs.forEach(t => {
-                    if (t.getAttribute('data-tab').startsWith('plan-')) t.classList.remove('active');
-                });
-                tab.classList.add('active');
-                const type = tab.getAttribute('data-tab') === 'plan-yearly' ? 'yearly' : 'weekly';
-                renderPlans(type);
-            }
-        });
-    });
-
-    if (formPlan) {
-        formPlan.addEventListener('submit', (e) => {
-            e.preventDefault();
-            savePlan();
-        });
-    }
 }
 
 function savePlan() {
     const title = document.getElementById('plan-title').value;
     const type = document.getElementById('plan-type').value;
     const fileInput = document.getElementById('plan-file');
-
-    if (!title || fileInput.files.length === 0) return;
-
     const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Lütfen bir dosya seçin.");
+        return;
+    }
+
     const reader = new FileReader();
-
     reader.onload = (e) => {
-        // Blob for storage
-        const blob = new Blob([new Uint8Array(e.target.result)], { type: file.type });
-
-        const plan = {
-            title: title,
-            type: type,
-            fileName: file.name,
-            fileType: file.type,
-            fileData: blob,
-            createdAt: new Date()
-        };
-
-        const transaction = db.transaction(['plans'], 'readwrite');
-        const store = transaction.objectStore('plans');
-        store.add(plan);
-
-        transaction.oncomplete = () => {
-            alert("Plan kaydedildi.");
+        const plan = { title, type, fileData: e.target.result, fileName: file.name, createdAt: new Date() };
+        const tx = db.transaction(['plans'], 'readwrite');
+        tx.objectStore('plans').add(plan).onsuccess = () => {
             document.getElementById('modal-plan').classList.remove('active');
-            renderPlans(type);
+            renderPlans();
         };
     };
-
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
 }
 
-function renderPlans(type) {
-    const list = document.getElementById('plan-list-container');
-    list.innerHTML = '';
+function renderPlans() {
+    const activeTab = document.querySelector('#view-plans .tab-btn.active').getAttribute('data-tab');
+    const targetType = activeTab === 'plan-yearly' ? 'yearly' : 'weekly';
+    const container = document.getElementById('plan-list-container');
+    container.innerHTML = '';
 
-    const transaction = db.transaction(['plans'], 'readonly');
-    const store = transaction.objectStore('plans');
-    const idx = store.index('type'); // Use index
-    const req = idx.openCursor(IDBKeyRange.only(type));
-
-    let hasPlans = false;
-
-    req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-            hasPlans = true;
-            const p = cursor.value;
-
-            const card = document.createElement('div');
-            card.className = 'info-card';
-            card.style.display = 'flex';
-            card.style.justifyContent = 'space-between';
-            card.style.alignItems = 'center';
-            card.style.marginBottom = '10px';
-
-            const icon = p.fileType.includes('image') ? '🖼️' : '📄';
-
-            card.innerHTML = `
-                <div style="display:flex; align-items:center;">
-                    <span style="font-size:1.5rem; margin-right:15px;">${icon}</span>
-                    <div>
-                        <h4 style="margin:0; font-size:1rem;">${p.title}</h4>
-                        <p style="margin:0; font-size:0.8rem; color:#888;">${p.fileName}</p>
-                    </div>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-icon" style="color:#4a90e2; font-size:1.2rem;">📂</button>
-                    <button class="btn-icon delete-plan-btn" style="color:#e74c3c;">🗑️</button>
+    const tx = db.transaction(['plans'], 'readonly');
+    tx.objectStore('plans').getAll().onsuccess = (e) => {
+        const plans = e.target.result.filter(p => p.type === targetType);
+        if (plans.length === 0) {
+            container.innerHTML = '<div class="empty-state-small">Henüz plan eklenmedi.</div>';
+            return;
+        }
+        plans.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'info-card';
+            el.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div><strong>${p.title}</strong><br><small>${p.fileName}</small></div>
+                    <button class="btn-secondary" style="padding: 5px 10px;">Aç</button>
                 </div>
             `;
-
-            // Open
-            card.querySelector('.btn-icon').addEventListener('click', () => {
-                const url = URL.createObjectURL(p.fileData);
-                window.open(url, '_blank');
-            });
-
-            // Delete
-            card.querySelector('.delete-plan-btn').addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                if (confirm('Plan silinsin mi?')) {
-                    const t2 = db.transaction(['plans'], 'readwrite');
-                    t2.objectStore('plans').delete(p.id);
-                    t2.oncomplete = () => renderPlans(type);
-                }
-            });
-
-            list.appendChild(card);
-
-            cursor.continue();
-        } else {
-            if (!hasPlans) list.innerHTML = '<div class="empty-state-small">Bu kategori için plan yok.</div>';
-        }
+            el.querySelector('button').onclick = () => {
+                const win = window.open();
+                win.document.write(`<iframe src="${p.fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+            };
+            container.appendChild(el);
+        });
     };
 }
 
-// --- Settings Logic ---
+// --- Settings ---
 function setupSettingsLogic() {
-    // Theme
-    const btnTheme = document.getElementById('btn-settings-theme');
-    const modalTheme = document.getElementById('modal-theme');
-    const btnCloseTheme = document.getElementById('btn-close-theme-modal');
+    document.getElementById('btn-settings-profile').onclick = () => document.getElementById('btn-edit-profile').click();
+    document.getElementById('btn-settings-theme').onclick = () => document.getElementById('modal-theme').classList.add('active');
+    document.getElementById('btn-close-theme-modal').onclick = () => document.getElementById('modal-theme').classList.remove('active');
+    document.getElementById('btn-settings-info').onclick = () => navigate('view-info', 'Hakkında');
 
-    if (btnTheme) btnTheme.addEventListener('click', () => modalTheme.classList.add('active'));
-    if (btnCloseTheme) btnCloseTheme.addEventListener('click', () => modalTheme.classList.remove('active'));
+    document.getElementById('btn-reset-data').onclick = () => {
+        if (confirm("DİKKAT! Tüm verileriniz kalıcı olarak silinecektir. Emin misiniz?")) {
+            resetAppData();
+        }
+    };
 
-    const themeOpts = document.querySelectorAll('.theme-option');
-    themeOpts.forEach(opt => {
-        opt.addEventListener('click', () => {
+    document.querySelectorAll('.theme-option').forEach(opt => {
+        opt.onclick = () => {
             const theme = opt.getAttribute('data-theme');
             applyTheme(theme);
-            modalTheme.classList.remove('active');
-        });
+            localStorage.setItem('app-theme', theme);
+            document.getElementById('modal-theme').classList.remove('active');
+        };
     });
-
-    // Info
-    const btnInfo = document.getElementById('btn-settings-info');
-    if (btnInfo) {
-        btnInfo.addEventListener('click', () => {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('view-info').classList.add('active');
-            document.querySelector('.app-header').style.display = 'flex';
-        });
-    }
-
-    // Reset
-    const btnReset = document.getElementById('btn-reset-data');
-    if (btnReset) {
-        btnReset.addEventListener('click', resetAppData);
-    }
 }
 
-function applyTheme(themeName) {
+function applyTheme(theme) {
     document.body.classList.remove('theme-green', 'theme-dark');
-    if (themeName === 'green') document.body.classList.add('theme-green');
-    if (themeName === 'dark') document.body.classList.add('theme-dark');
-    localStorage.setItem('app-theme', themeName);
+    if (theme === 'green') document.body.classList.add('theme-green');
+    if (theme === 'dark') document.body.classList.add('theme-dark');
 }
 
 function resetAppData() {
-    if (confirm('UYARI: Tüm veriler silinecek ve uygulama sıfırlanacak. Bu işlem geri alınamaz!')) {
-        if (confirm('Son kez soruyorum: Emin misiniz?')) {
-            const req = indexedDB.deleteDatabase(DB_NAME);
-            req.onsuccess = () => {
-                localStorage.clear();
-                location.reload();
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => {
+        localStorage.clear();
+        location.reload();
+    };
+}
+
+// --- PDF Logic ---
+function setupPDFLogic() {
+    document.getElementById('btn-create-pdf').onclick = generatePDF;
+}
+
+function generatePDF() {
+    const tx = db.transaction(['students', 'teachers', 'classes'], 'readonly');
+    let teacher, student, className;
+
+    tx.objectStore('teachers').get('teacher_profile').onsuccess = (e) => teacher = e.target.result;
+    tx.objectStore('students').get(currentStudentId).onsuccess = (e) => {
+        student = e.target.result;
+        if (student.classId) {
+            db.transaction(['classes'], 'readonly').objectStore('classes').get(student.classId).onsuccess = (ev) => {
+                className = ev.target.result?.name;
+                renderPrintView(teacher, student, className);
             };
+        } else {
+            className = student.prevClass;
+            renderPrintView(teacher, student, className);
         }
-    }
+    };
 }
 
-// Service Worker Registration
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker Registered', reg))
-            .catch(err => console.error('Service Worker Failed', err));
-    }
+function renderPrintView(teacher, student, className) {
+    const printArea = document.getElementById('print-area');
+    const today = new Date().toLocaleDateString('tr-TR');
+
+    let examsHtml = student.exams?.length ? `<table style="width:100%; border-collapse:collapse; margin-top:10px;">` + student.exams.map(e => `<tr style="border-bottom:1px solid #eee;"><td>${e.name}</td><td>${e.score}</td></tr>`).join('') + `</table>` : 'Sınav yok.';
+    let notesHtml = student.teacherNotes?.length ? student.teacherNotes.map(n => `<div style="margin-top:10px; font-size:14px;"><strong>${n.date}:</strong> ${n.text}</div>`).join('') : 'Not yok.';
+
+    printArea.innerHTML = `
+        <div style="padding:40px; font-family:sans-serif;">
+            <h1 style="text-align:center;">${teacher.school}</h1>
+            <h2 style="text-align:center;">Öğrenci Gözlem Formu</h2>
+            <hr>
+            <p><strong>Öğretmen:</strong> ${teacher.name} (${teacher.branch})</p>
+            <p><strong>Öğrenci:</strong> ${student.name} (${student.number})</p>
+            <p><strong>Sınıf:</strong> ${className || '-'}</p>
+            <h3>Sınav Notları</h3>${examsHtml}
+            <h3>Öğretmen Notları</h3>${notesHtml}
+            <footer style="margin-top:50px; text-align:right;"><p>${today}</p></footer>
+        </div>
+    `;
+    window.print();
 }
 
+// Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js?v=7');
+}

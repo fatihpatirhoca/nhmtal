@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nhmtal-teacher-v2';
+const CACHE_NAME = 'nhmtal-teacher-v7';
 const ASSETS = [
   './',
   './index.html',
