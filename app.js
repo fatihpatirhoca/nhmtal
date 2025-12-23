@@ -1477,5 +1477,5 @@ async function generatePDF() {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=13');
+    navigator.serviceWorker.register('./sw.js?v=14');
 }

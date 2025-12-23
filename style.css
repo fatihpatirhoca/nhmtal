@@ -600,9 +600,16 @@ input[type="date"]:focus,
 select:focus,
 textarea:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.2);
     outline: none;
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--card-bg);
+}
+
+body:not(.theme-navy) input:focus,
+body:not(.theme-navy) select:focus,
+body:not(.theme-navy) textarea:focus {
+    background: #ffffff;
+    color: #000000;
 }
 
 .btn-primary {
@@ -845,6 +852,15 @@ textarea:focus {
     background: var(--primary-color);
     color: white;
     box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 /* Info Cards */
