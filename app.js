@@ -1109,42 +1109,105 @@ function renderPlans(targetType) {
                     <button class="btn-secondary" style="padding: 5px 10px;">Aç</button>
                 </div>
             `;
-            el.querySelector('button').onclick = () => {
+            el.querySelector('button').onclick = async () => {
                 const isPdf = p.fileName.toLowerCase().endsWith('.pdf');
+                const isWord = p.fileName.toLowerCase().endsWith('.docx');
+                const isExcel = p.fileName.toLowerCase().endsWith('.xlsx') || p.fileName.toLowerCase().endsWith('.xls');
 
-                // If native (Word/Excel) and NOT PDF, trigger download
-                if (p.isNative && !isPdf) {
-                    const link = document.createElement('a');
-                    link.href = p.fileData;
-                    link.download = p.originalName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    return;
-                }
-
-                // PDF Logic
                 const viewer = document.getElementById('modal-file-viewer');
                 const frame = document.getElementById('viewer-frame');
                 const title = document.getElementById('viewer-title');
 
                 title.textContent = p.originalName || p.title;
 
-                try {
-                    const byteString = atob(p.fileData.split(',')[1]);
-                    const arrayBuffer = new ArrayBuffer(byteString.length);
-                    const ia = new Uint8Array(arrayBuffer);
-                    for (let i = 0; i < byteString.length; i++) {
-                        ia[i] = byteString.charCodeAt(i);
-                    }
-                    const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-                    const blobUrl = URL.createObjectURL(blob);
+                // 1. Word Document (.docx) -> HTML Preview
+                if (isWord) {
+                    try {
+                        viewer.classList.add('active');
+                        frame.srcdoc = '<div style="padding:20px; font-family:sans-serif; color:white;">🔄 Belge hazırlanıyor...</div>';
 
-                    frame.src = blobUrl;
-                    viewer.classList.add('active');
-                    history.pushState({ modal: 'viewer' }, '', '#viewer');
-                } catch (e) {
-                    console.error("PDF Açma Hatası", e);
+                        const response = await fetch(p.fileData);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+
+                        const htmlContent = `
+                            <html>
+                            <head>
+                                <style>
+                                    body { font-family: -apple-system, system-ui; padding: 30px; line-height: 1.6; color: #333; background: white; }
+                                    img { max-width: 100%; height: auto; }
+                                    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                                </style>
+                            </head>
+                            <body>${result.value || 'Belge içeriği boş.'}</body>
+                            </html>
+                        `;
+                        frame.srcdoc = htmlContent;
+                        history.pushState({ modal: 'viewer' }, '', '#viewer');
+                        return;
+                    } catch (err) {
+                        console.error("Word conversion error:", err);
+                    }
+                }
+
+                // 2. Excel Document (.xlsx) -> Table Preview
+                if (isExcel) {
+                    try {
+                        viewer.classList.add('active');
+                        frame.srcdoc = '<div style="padding:20px; font-family:sans-serif; color:white;">🔄 Tablo hazırlanıyor...</div>';
+
+                        const response = await fetch(p.fileData);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const htmlTable = XLSX.utils.sheet_to_html(worksheet);
+
+                        const htmlContent = `
+                            <html>
+                            <head>
+                                <style>
+                                    body { font-family: sans-serif; padding: 20px; background: white; }
+                                    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+                                    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                                    th { background: #f4f4f4; }
+                                </style>
+                            </head>
+                            <body>${htmlTable}</body>
+                            </html>
+                        `;
+                        frame.srcdoc = htmlContent;
+                        history.pushState({ modal: 'viewer' }, '', '#viewer');
+                        return;
+                    } catch (err) {
+                        console.error("Excel conversion error:", err);
+                    }
+                }
+
+                // 3. PDF or Native Fallback
+                if (isPdf) {
+                    try {
+                        const byteString = atob(p.fileData.split(',')[1]);
+                        const arrayBuffer = new ArrayBuffer(byteString.length);
+                        const ia = new Uint8Array(arrayBuffer);
+                        for (let i = 0; i < byteString.length; i++) {
+                            ia[i] = byteString.charCodeAt(i);
+                        }
+                        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+                        const blobUrl = URL.createObjectURL(blob);
+
+                        frame.src = blobUrl;
+                        viewer.classList.add('active');
+                        history.pushState({ modal: 'viewer' }, '', '#viewer');
+                    } catch (e) {
+                        frame.src = p.fileData;
+                        viewer.classList.add('active');
+                        history.pushState({ modal: 'viewer' }, '', '#viewer');
+                    }
+                } else if (p.isNative) {
+                    // If we reach here, Word/Excel conversion failed or it's another file type
+                    // Show in viewer anyway (iOS Safari might preview it)
                     frame.src = p.fileData;
                     viewer.classList.add('active');
                     history.pushState({ modal: 'viewer' }, '', '#viewer');

@@ -179,12 +179,12 @@ button,
 }
 
 /* Main Layout */
+/* Main Layout */
 main#main-content {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
     padding-bottom: 120px;
-    /* Space for bottom nav and safe area */
     position: relative;
     width: 100%;
     max-width: 600px;
@@ -377,63 +377,69 @@ textarea:focus {
     margin-top: 10px;
 }
 
-/* Bottom Navigation */
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: var(--nav-height);
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border-top: var(--glass-border);
-    padding-bottom: env(safe-area-inset-bottom);
-    z-index: 1000;
-}
-
-.nav-item {
-    flex: 1;
+/* Student & Class Cards */
+.student-grid,
+.class-grid {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    gap: 4px;
-    cursor: pointer;
+    gap: 12px;
 }
 
-.nav-item.active {
+.student-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 15px;
+    border: var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.student-card:active {
+    transform: scale(0.98);
+}
+
+.student-list-avatar {
+    width: 45px;
+    height: 45px;
+    background: rgba(var(--primary-rgb), 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
     color: var(--primary-color);
 }
 
-.nav-item .icon {
-    font-size: 1.5rem;
+.student-list-img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
 }
 
-.nav-item .label {
-    font-size: 0.75rem;
-    font-weight: 500;
+.student-info {
+    flex: 1;
 }
 
-/* Profile View */
-.profile-card {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: var(--glass-border);
-    border-radius: 24px;
-    padding: 30px 20px;
-    text-align: center;
-    box-shadow: var(--shadow);
-    margin-top: 20px;
+.student-info h4 {
+    font-size: 1.05rem;
+    margin-bottom: 2px;
+    color: var(--text-color);
 }
 
+.student-info p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Profile Image Containers */
 .profile-image-container {
     width: 110px;
     height: 110px;
@@ -449,158 +455,308 @@ textarea:focus {
     backdrop-filter: blur(5px);
 }
 
-.profile-avatar {
-    font-size: 4rem;
+.profile-image-container.medium {
+    width: 90px;
+    height: 90px;
+    border-width: 2px;
 }
 
-#profile-img-display {
+.profile-image-container.small {
+    width: 70px;
+    height: 70px;
+    border-width: 2px;
+}
+
+.profile-image-container img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.profile-details {
-    background: rgba(255, 255, 255, 0.05);
+.profile-avatar {
+    font-size: 3.5rem;
+}
+
+.profile-image-container.medium .profile-avatar {
+    font-size: 2.8rem;
+}
+
+.profile-image-container.small .profile-avatar {
+    font-size: 2.2rem;
+}
+
+/* Settings */
+.settings-list {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
     border: var(--glass-border);
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 25px;
-    text-align: left;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-top: 10px;
 }
 
-.detail-item {
+.settings-item {
+    width: 100%;
     display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
+    align-items: center;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
     border-bottom: 1px solid rgba(150, 150, 150, 0.1);
+    text-align: left;
+    color: var(--text-color);
+    cursor: pointer;
 }
 
-.detail-item:last-child {
+.settings-item .icon {
+    margin-right: 15px;
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+}
+
+.settings-item .text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.settings-item .arrow {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.settings-item:active {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.settings-item:last-child {
     border-bottom: none;
 }
 
-.detail-item .label {
+/* Student Profile Hero */
+.student-profile-hero {
+    text-align: center;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    padding: 25px 20px;
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    border: var(--glass-border);
+}
+
+.student-profile-hero h2 {
+    margin-top: 10px;
+    font-size: 1.4rem;
+}
+
+.student-profile-hero p {
     color: var(--text-muted);
     font-size: 0.9rem;
 }
 
-.detail-item .value {
-    font-weight: 600;
-}
-
-/* Modals */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    padding: 20px;
-}
-
-.modal-overlay.active {
+/* Tabs */
+.student-profile-tabs {
     display: flex;
-}
-
-.modal-content {
     background: var(--card-bg);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
+    backdrop-filter: blur(10px);
     border: var(--glass-border);
-    border-radius: 24px;
-    padding: 25px;
-    width: 100%;
-    max-width: 450px;
+    border-radius: 16px;
+    padding: 5px;
+    margin-bottom: 20px;
     box-shadow: var(--shadow);
 }
 
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 15px;
-    margin-top: 25px;
-}
-
-.btn-text {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-weight: 600;
+.tab-btn {
+    flex: 1;
     padding: 10px;
+    border: none;
+    background: none;
+    border-radius: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
     cursor: pointer;
 }
 
-.btn-danger {
-    background: #e74c3c;
+.tab-btn.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Info Cards */
+.info-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    border: var(--glass-border);
+}
+
+.info-card h3 {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 10px;
+}
+
+.parent-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.parent-info .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: block;
+}
+
+.parent-info strong {
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.btn-action {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    font-size: 1.1rem;
+}
+
+.btn-action.call {
+    background: #2ecc71;
+}
+
+.btn-action.msg {
+    background: #3498db;
+}
+
+/* Search Inputs */
+.search-input {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 25px;
+    border: var(--glass-border);
+    background: var(--input-bg);
+    margin-bottom: 15px;
+    color: var(--text-color);
+    backdrop-filter: blur(10px);
+}
+
+/* Floating Action Button */
+.fab-btn {
+    position: fixed;
+    bottom: 110px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 12px;
-    padding: 10px 20px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-/* Classes & Students */
-.class-grid,
-.student-grid {
+    font-size: 30px;
+    box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.4);
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-}
-
-/* Tags Removed */
-.chip-selector {
-    display: none;
-}
-
-/* FAB */
-.fab-btn {
-    z-index: 100;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-    main#main-content {
-        padding: 15px;
-        padding-bottom: 100px;
-    }
-}
-
-/* Additional fixes for specific issues */
-.photo-section {
-    display: flex;
-    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 900;
 }
 
-.form-row {
-    display: flex;
-    gap: 15px;
+/* Timeline/Notes */
+.timeline-list {
+    position: relative;
+    padding-left: 15px;
 }
 
-.form-row .form-group {
-    flex: 1;
+.timeline-item {
+    position: relative;
+    padding-bottom: 25px;
+    border-left: 2px solid rgba(var(--primary-rgb), 0.2);
+    padding-left: 25px;
 }
 
-/* Timeline & Exams */
-.timeline-list,
-.exam-list {
-    margin-top: 15px;
+.timeline-item::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: 2px solid white;
 }
 
-.timeline-item,
+.timeline-date {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.timeline-content {
+    background: rgba(255, 255, 255, 0.4);
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    border: var(--glass-border);
+}
+
+/* Exams */
+.exam-summary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 20px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.exam-average {
+    font-size: 2.5rem;
+    font-weight: 800;
+    display: block;
+}
+
 .exam-item {
-    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: 16px;
+    margin-bottom: 10px;
+    border: var(--glass-border);
+}
+
+.exam-score {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
