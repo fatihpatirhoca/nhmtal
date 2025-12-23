@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupTransitionLogic();
         setupPDFLogic();
         setupPlansLogic();
+        setupExcelImportLogic();
         setupSettingsLogic();
     } catch (e) {
         console.error("Setup Error:", e);
@@ -263,12 +264,24 @@ function setupClassLogic() {
     const form = document.getElementById('form-class');
 
     btnAdd.addEventListener('click', () => {
+        document.getElementById('modal-import-choice').classList.add('active');
+    });
+
+    document.getElementById('btn-close-import-choice').onclick = () => document.getElementById('modal-import-choice').classList.remove('active');
+
+    document.getElementById('btn-choice-manual').onclick = () => {
+        document.getElementById('modal-import-choice').classList.remove('active');
         form.reset();
         document.getElementById('class-id').value = '';
         document.getElementById('modal-class-title').textContent = 'Yeni Sınıf Ekle';
-        document.getElementById('btn-delete-class').style.display = 'none'; // Hide delete
+        document.getElementById('btn-delete-class').style.display = 'none';
         modal.classList.add('active');
-    });
+    };
+
+    document.getElementById('btn-choice-excel').onclick = () => {
+        document.getElementById('modal-import-choice').classList.remove('active');
+        openExcelImport();
+    };
 
     document.getElementById('btn-close-class-modal').addEventListener('click', () => modal.classList.remove('active'));
 
@@ -320,6 +333,230 @@ function deleteClass(id) {
         document.getElementById('modal-class').classList.remove('active');
         renderClasses();
     };
+}
+
+// --- Excel Import Logic ---
+let pendingStudents = [];
+
+function setupExcelImportLogic() {
+    const fileInput = document.getElementById('excel-file-input');
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) handleExcelFile(file);
+    };
+
+    document.getElementById('btn-cancel-import').onclick = () => {
+        document.getElementById('import-step-2').style.display = 'none';
+        document.getElementById('import-step-1').style.display = 'block';
+        pendingStudents = [];
+    };
+
+    document.getElementById('btn-confirm-import').onclick = processImport;
+    document.getElementById('btn-finish-import').onclick = () => {
+        document.getElementById('modal-excel-import').classList.remove('active');
+        renderClasses();
+        renderAllStudents();
+    };
+}
+
+function openExcelImport() {
+    document.getElementById('import-step-1').style.display = 'block';
+    document.getElementById('import-step-2').style.display = 'none';
+    document.getElementById('import-step-3').style.display = 'none';
+    document.getElementById('excel-file-input').value = '';
+    document.getElementById('modal-excel-import').classList.add('active');
+}
+
+function handleExcelFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            if (json.length < 2) throw new Error("Dosya boş görünüyor.");
+
+            let detectedClassName = "";
+            let colIndexNo = -1;
+            let colIndexName = -1;
+            let dataStartRow = -1;
+
+            // 1. Scan for Class Name and Table Headers (Deep Search)
+            for (let r = 0; r < Math.min(json.length, 30); r++) {
+                const row = json[r];
+                if (!row) continue;
+
+                for (let c = 0; c < row.length; c++) {
+                    const cellVal = String(row[c] || "").trim();
+
+                    // Search for Class Name Tag
+                    if (cellVal.includes("Sınıfı / Şubesi") || cellVal.includes("Sınıf/Şube")) {
+                        // Scan the rest of the row for the first non-empty value
+                        for (let scanCol = c; scanCol < row.length; scanCol++) {
+                            let val = String(row[scanCol] || "").trim();
+                            // Skip the label itself and empty/useless cells
+                            if (val.includes("Sınıfı / Şubesi") || val.includes("Sınıf/Şube") || val === ":" || val === "-" || !val) continue;
+
+                            // Found the actual name! Clean it up (remove leading colons etc)
+                            detectedClassName = val.replace(/^[:\s-]+/, "").trim();
+                            if (detectedClassName) break;
+                        }
+                    }
+
+                    // Search for Table Headers
+                    if (cellVal.includes("Okul Numarası") || cellVal.includes("Öğrenci No")) {
+                        colIndexNo = c;
+                        dataStartRow = r + 1;
+                    }
+                    if (cellVal.includes("Adı Soyadı") || cellVal.includes("Ad Soyad")) {
+                        colIndexName = c;
+                    }
+                }
+                if (colIndexNo !== -1 && colIndexName !== -1) break;
+            }
+
+            // Fallback for simple flat lists
+            if (colIndexNo === -1) {
+                const headers = json[0].map(h => String(h || '').toLowerCase().trim());
+                colIndexNo = headers.findIndex(h => h.includes('no') || h.includes('numara'));
+                colIndexName = headers.findIndex(h => h.includes('ad') || h.includes('isim'));
+                dataStartRow = 1;
+            }
+
+            if (colIndexNo === -1 || colIndexName === -1) {
+                throw new Error("Sütunlar bulunamadı. Dosyada 'Okul Numarası' ve 'Adı Soyadı' başlıklarının olduğundan emin olun.");
+            }
+
+            // 2. Data Extraction
+            pendingStudents = [];
+            for (let i = dataStartRow; i < json.length; i++) {
+                const row = json[i];
+                if (!row) continue;
+
+                const rawNo = String(row[colIndexNo] || "").trim();
+                const rawName = String(row[colIndexName] || "").trim();
+
+                // Stop conditions for e-Okul footer or empty rows
+                if (!rawNo || isNaN(parseInt(rawNo)) || rawName.includes("Toplam Öğrenci")) continue;
+
+                let sClassName = detectedClassName;
+                if (!sClassName) {
+                    // Try to find class column in row
+                    const headers = json[0].map(h => String(h || '').toLowerCase().trim());
+                    const sinifColIdx = headers.findIndex(h => h.includes('sınıf') || h.includes('şube'));
+                    if (sinifColIdx !== -1) sClassName = String(row[sinifColIdx] || "").trim();
+                }
+
+                pendingStudents.push({
+                    number: rawNo,
+                    name: rawName,
+                    className: sClassName || "Genel"
+                });
+            }
+
+            if (pendingStudents.length === 0) throw new Error("Dosyadan öğrenci verisi ayıklanamadı.");
+
+            // 3. Preview (First 5)
+            const previewTable = document.getElementById('import-preview-table');
+            previewTable.innerHTML = `
+                <tr style="background: rgba(var(--primary-rgb), 0.1); font-weight: 700;">
+                    <td style="padding: 10px; border: 1px solid #ddd;">No</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Ad Soyad</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Sınıf</td>
+                </tr>
+            `;
+            pendingStudents.slice(0, 5).forEach(s => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 10px; border: 1px solid #ddd;">${s.number}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${s.name}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${s.className}</td>
+                `;
+                previewTable.appendChild(tr);
+            });
+
+            document.getElementById('import-step-1').style.display = 'none';
+            document.getElementById('import-step-2').style.display = 'block';
+
+        } catch (err) {
+            alert("Dosya Okuma Hatası: " + err.message);
+            console.error(err);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+async function processImport() {
+    const btnConfirm = document.getElementById('btn-confirm-import');
+    btnConfirm.disabled = true;
+    btnConfirm.textContent = "Aktarılıyor...";
+
+    try {
+        const classMap = {}; // name -> id
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        // 1. Get existing classes to map names
+        const cTx = db.transaction(['classes'], 'readonly');
+        const cStore = cTx.objectStore('classes');
+        const existingClasses = await new Promise(r => cStore.getAll().onsuccess = (e) => r(e.target.result));
+        existingClasses.forEach(c => classMap[c.name] = c.id);
+
+        // 2. Loop and process
+        for (const s of pendingStudents) {
+            // A. Ensure class exists
+            if (!classMap[s.className]) {
+                const newClass = { name: s.className, level: parseInt(s.className) || 0 };
+                const cAddTx = db.transaction(['classes'], 'readwrite');
+                const newId = await new Promise(r => {
+                    const req = cAddTx.objectStore('classes').add(newClass);
+                    req.onsuccess = (e) => r(e.target.result);
+                });
+                classMap[s.className] = newId;
+            }
+
+            const activeClassId = classMap[s.className];
+
+            // B. Check if student (No + Class) already exists
+            const sTx = db.transaction(['students'], 'readonly');
+            const sStore = sTx.objectStore('students');
+            const index = sStore.index('classId');
+            const classStudents = await new Promise(r => index.getAll(activeClassId).onsuccess = (e) => r(e.target.result));
+
+            const isDuplicate = classStudents.some(cs => cs.number === s.number);
+
+            if (!isDuplicate) {
+                // C. Add Student
+                const studentData = {
+                    number: s.number,
+                    name: s.name,
+                    classId: activeClassId,
+                    status: 'active',
+                    updatedAt: new Date()
+                };
+                const sAddTx = db.transaction(['students'], 'readwrite');
+                await new Promise(r => sAddTx.objectStore('students').add(studentData).onsuccess = () => r());
+                addedCount++;
+            } else {
+                skippedCount++;
+            }
+        }
+
+        // 3. Show Result
+        document.getElementById('count-added').textContent = addedCount;
+        document.getElementById('count-skipped').textContent = skippedCount;
+        document.getElementById('import-step-2').style.display = 'none';
+        document.getElementById('import-step-3').style.display = 'block';
+
+    } catch (err) {
+        alert("Kritik Hata: " + err.message);
+        console.error(err);
+    } finally {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = "Aktarımı Başlat";
+    }
 }
 
 function renderClasses() {
@@ -1477,5 +1714,5 @@ async function generatePDF() {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=14');
+    navigator.serviceWorker.register('./sw.js?v=18');
 }

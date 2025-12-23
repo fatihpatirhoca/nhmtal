@@ -411,6 +411,18 @@ main#main-content {
     cursor: pointer;
 }
 
+/* Info Box */
+.info-box {
+    background: rgba(var(--primary-rgb), 0.1);
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    line-height: 1.5;
+    text-align: left;
+}
+
 /* Form Rows */
 .form-row {
     display: flex;

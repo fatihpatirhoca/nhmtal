@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=18">
 </head>
 
 <body>
@@ -453,6 +453,81 @@
         </div>
     </div>
 
+    <!-- Import Choice Modal -->
+    <div id="modal-import-choice" class="modal-overlay">
+        <div class="modal-content" style="text-align: center;">
+            <h3>Sınıf / Öğrenci Ekle</h3>
+            <p style="margin-bottom: 20px;">Nasıl devam etmek istersiniz?</p>
+            <div style="display: grid; gap: 15px;">
+                <button class="btn-secondary" id="btn-choice-manual" style="padding: 20px; text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px;">✍️</div>
+                    <div>Elle Manuel Gir</div>
+                </button>
+                <button class="btn-primary" id="btn-choice-excel" style="padding: 20px; text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px;">📊</div>
+                    <div>Excel'den Otomatik Aktar (e-Okul)</div>
+                </button>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-text" id="btn-close-import-choice">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Import Progress Modal -->
+    <div id="modal-excel-import" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <h3 id="import-modal-title">Excel'den Aktar</h3>
+            <div id="import-step-1">
+                <div class="info-box" style="margin-bottom: 20px;">
+                    <strong>💡 Hızlı İpucu:</strong><br>
+                    e-Okul'da <strong>Raporlar (Yazıcı Simgesi)</strong> kısmından <strong>"1. Dönem Puan
+                        Çizelgesi"</strong> raporunu açıp <strong>Excel</strong> olarak indirdiğiniz dosyayı buraya
+                    atarsanız, sınıf ve öğrencileriniz saniyeler içinde tertemiz eklenir.
+                </div>
+                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Dosyayı seçmek için
+                    aşağıdaki butona basın:</p>
+                <label class="btn-secondary"
+                    style="display: block; padding: 30px; border: 2px dashed var(--primary-color); cursor: pointer; text-align: center;">
+                    📁 Dosya Seç
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" hidden>
+                </label>
+            </div>
+
+            <div id="import-step-2" style="display: none;">
+                <p style="margin-bottom: 10px; font-weight: 600;">Veri Önizleme (İlk 5 Kayıt):</p>
+                <div
+                    style="overflow-x: auto; margin-bottom: 20px; background: rgba(0,0,0,0.05); border-radius: 12px; border: 1px solid rgba(0,0,0,0.1);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;" id="import-preview-table">
+                        <!-- Preview rows injected here -->
+                    </table>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="btn-cancel-import">Vazgeç</button>
+                    <button type="button" class="btn-primary" id="btn-confirm-import">Aktarımı Başlat</button>
+                </div>
+            </div>
+
+            <div id="import-step-3" style="display: none; text-align: center; padding: 20px 0;">
+                <div id="import-result-icon" style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                <h4 id="import-result-msg">Aktarım Tamamlandı</h4>
+                <div style="margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: rgba(46, 204, 113, 0.1); padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 1.2rem; font-weight: 800; color: #27ae60;" id="count-added">0</div>
+                        <small>Eklenen</small>
+                    </div>
+                    <div style="background: rgba(0, 0, 0, 0.05); padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 1.2rem; font-weight: 800; color: #888;" id="count-skipped">0</div>
+                        <small>Atlanan</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-primary" id="btn-finish-import">Tamam</button>
+            </div>
+
+            <button type="button" class="btn-text" id="btn-close-excel-modal" style="display:none">Kapat</button>
+        </div>
+    </div>
+
     <!-- Student Add/Edit Modal -->
     <div id="modal-student" class="modal-overlay">
         <div class="modal-content modal-large">
@@ -683,7 +758,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <script src="app.js?v=14"></script>
+    <script src="app.js?v=18"></script>
 </body>
 
 </html>
