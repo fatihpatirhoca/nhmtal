@@ -178,6 +178,70 @@ button,
     border-bottom: var(--glass-border);
 }
 
+/* Sub-Header style for views like student profile & class detail */
+.sub-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: transparent;
+    gap: 15px;
+    height: 60px;
+    margin-bottom: 5px;
+}
+
+.sub-header h2 {
+    flex: 1;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Back Button - Larger for accessibility */
+.btn-back {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+    border-radius: 50%;
+    color: var(--primary-color);
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-back:active {
+    transform: scale(0.9);
+    background: rgba(var(--primary-rgb), 0.2);
+}
+
+/* Icon Buttons (Edit, etc) */
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+    border-radius: 50%;
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:active {
+    transform: scale(0.9);
+}
+
 /* Bottom Navigation - Premium Glass */
 .bottom-nav {
     position: fixed;

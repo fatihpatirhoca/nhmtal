@@ -628,6 +628,46 @@ function loadStudentProfile(studentId, readOnly = false) {
     };
 }
 
+function renderAllStudents() {
+    const list = document.getElementById('global-student-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const tx = db.transaction(['students'], 'readonly');
+    tx.objectStore('students').getAll().onsuccess = (e) => {
+        const students = e.target.result.filter(s => s.status !== 'graduated'); // Only active students
+        if (students.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>Henüz kayıtlı öğrenci yok.</p></div>';
+            return;
+        }
+
+        students.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'student-card global-student-card';
+            card.setAttribute('data-name', s.name.toLowerCase());
+            let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
+            card.innerHTML = `
+                ${avatar}
+                <div class="student-info">
+                    <h4>${s.name}</h4>
+                    <p>No: ${s.number}</p>
+                </div>
+            `;
+            card.onclick = () => loadStudentProfile(s.id);
+            list.appendChild(card);
+        });
+    };
+}
+
+// Global Search logic for All Students
+document.getElementById('global-student-search').addEventListener('input', (e) => {
+    const text = e.target.value.toLowerCase();
+    document.querySelectorAll('.global-student-card').forEach(card => {
+        const name = card.getAttribute('data-name');
+        card.style.display = name.includes(text) ? 'flex' : 'none';
+    });
+});
+
 // --- Performance (Notes/Exams) ---
 function setupPerformanceLogic() {
     document.getElementById('btn-close-note-modal').onclick = () => document.getElementById('modal-note').classList.remove('active');
@@ -934,8 +974,14 @@ async function savePlan() {
         let isNative = false;
 
         // Try to convert Image
+        // Store Images directly for better performance/quality as requested
         if (file.type.startsWith('image/')) {
-            fileData = await convertFileToPDF(file);
+            fileData = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+            isNative = true;
         } else if (file.name.toLowerCase().endsWith('.pdf')) {
             // Store PDF as Data URL directly
             fileData = await new Promise((resolve) => {
@@ -1113,12 +1159,27 @@ function renderPlans(targetType) {
                 const isPdf = p.fileName.toLowerCase().endsWith('.pdf');
                 const isWord = p.fileName.toLowerCase().endsWith('.docx');
                 const isExcel = p.fileName.toLowerCase().endsWith('.xlsx') || p.fileName.toLowerCase().endsWith('.xls');
+                const isImage = p.fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i) || p.fileData.startsWith('data:image/');
 
                 const viewer = document.getElementById('modal-file-viewer');
                 const frame = document.getElementById('viewer-frame');
                 const title = document.getElementById('viewer-title');
 
                 title.textContent = p.originalName || p.title;
+
+                // 0. Image Preview
+                if (isImage) {
+                    viewer.classList.add('active');
+                    frame.srcdoc = `
+                        <html>
+                        <body style="margin:0; background:#2c2c2c; display:flex; align-items:center; justify-content:center; height:100vh;">
+                            <img src="${p.fileData}" style="max-width:100%; max-height:100%; object-fit:contain;">
+                        </body>
+                        </html>
+                    `;
+                    history.pushState({ modal: 'viewer' }, '', '#viewer');
+                    return;
+                }
 
                 // 1. Word Document (.docx) -> HTML Preview
                 if (isWord) {
@@ -1416,5 +1477,5 @@ async function generatePDF() {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=12');
+    navigator.serviceWorker.register('./sw.js?v=13');
 }
