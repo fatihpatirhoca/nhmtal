@@ -8,8 +8,10 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4a90e2">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 
 <body>
@@ -259,14 +261,21 @@
 
             <div class="info-card"
                 style="text-align: center; margin-top: 30px; background: rgba(var(--primary-rgb), 0.05); border: 1px solid var(--primary-color);">
-                <p style="color: #666; font-size: 0.9rem; margin-bottom: 5px;">Tasarım ve Geliştirme</p>
                 <div onclick="window.open('https://fatihpatirhoca.github.io/web/index.html', '_blank')"
                     style="cursor: pointer; padding: 10px;">
-                    <h2 style="color: var(--primary-color); font-weight: 800; margin: 0; font-size: 1.5rem;">Fatih PATIR
+                    <h3 style="color: var(--primary-color); margin-bottom: 5px;">Korkuteli Nene Hatun MTAL</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Korkuteli / ANTALYA</p>
+                    <p style="font-weight: 600; margin: 10px 0; color: var(--text-color);">Bilişim Teknolojileri
+                        Öğretmeni</p>
+                    <h2 style="color: var(--primary-color); font-weight: 800; margin: 5px 0 15px 0; font-size: 1.6rem;">
+                        Fatih PATIR
                     </h2>
-                    <p style="color: #444; font-size: 0.85rem; margin-top: 5px;">(C) 2025 - Tüm Hakları Saklıdır</p>
-                    <div style="margin-top: 15px; font-size: 0.85rem; color: var(--primary-color); font-weight: 600;">
-                        Kişisel Web Sayfamı Ziyaret Edin →</div>
+
+                    <p style="color: #444; font-size: 0.85rem;">(C) 2025 - Tüm Hakları Saklıdır</p>
+
+                    <div
+                        style="margin-top: 15px; font-size: 0.85rem; color: var(--primary-color); font-weight: 600; text-decoration: underline;">
+                        Web Sayfamı Ziyaret Edin →</div>
                 </div>
             </div>
         </section>
@@ -623,13 +632,16 @@
             <h3>Tema Seç</h3>
             <div class="list-group">
                 <button class="settings-item theme-option" data-theme="default">
-                    <span class="icon" style="color:#4a90e2">🔵</span> Klasik Mavi
+                    <span class="icon" style="color:#bdc3c7">🌫️</span> Gümüş Sis
+                </button>
+                <button class="settings-item theme-option" data-theme="navy">
+                    <span class="icon" style="color:#141E30">⚓</span> Kraliyet Laciverti
+                </button>
+                <button class="settings-item theme-option" data-theme="rose">
+                    <span class="icon" style="color:#DA4453">🌸</span> Rose Gold
                 </button>
                 <button class="settings-item theme-option" data-theme="green">
                     <span class="icon" style="color:#2e7d32">🌿</span> Doğa Yeşili
-                </button>
-                <button class="settings-item theme-option" data-theme="dark">
-                    <span class="icon" style="color:#333">⚫</span> Premium Koyu
                 </button>
             </div>
             <div class="modal-actions">

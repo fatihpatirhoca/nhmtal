@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check theme
     try {
-        const savedTheme = localStorage.getItem('app-theme') || 'dark';
+        const savedTheme = localStorage.getItem('app-theme') || 'navy';
         applyTheme(savedTheme);
     } catch (e) { console.warn("Theme load failed", e); }
 });
@@ -930,60 +930,59 @@ async function savePlan() {
     btn.disabled = true;
 
     try {
-        const pdfData = await convertFileToPDF(file);
+        let fileData = null;
+        let isNative = false;
+
+        // Try to convert Image
+        if (file.type.startsWith('image/')) {
+            fileData = await convertFileToPDF(file);
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
+            // Store PDF as Data URL directly
+            fileData = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        } else {
+            // Word/Excel -> Store as base64 to allow download
+            isNative = true;
+            fileData = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
         const plan = {
             title,
             type,
-            fileData: pdfData,
-            fileName: file.name.split('.')[0] + '.pdf',
+            fileData: fileData,
+            fileName: file.name, // Keep original extension
             originalName: file.name,
+            isNative: isNative, // Flag for handling view
             createdAt: new Date()
         };
+
         const tx = db.transaction(['plans'], 'readwrite');
         tx.objectStore('plans').add(plan).onsuccess = () => {
             document.getElementById('modal-plan').classList.remove('active');
             renderPlans(type);
         };
     } catch (error) {
-        console.error("PDF Dönüştürme Hatası:", error);
-        alert("Dosya PDF'e dönüştürülürken hata oluştu. Lütfen dosyanın bozuk olmadığından emin olun.\nHata: " + error.message);
+        console.error("Dosya Hatası:", error);
+        alert("Dosya yüklenirken hata oluştu: " + error.message);
     } finally {
         btn.textContent = originalText;
         btn.disabled = false;
     }
 }
 
+// Simplified Conversion: Only for Images. 
+// Word/Excel/PDF are stored as-is for native viewing.
 async function convertFileToPDF(file) {
     const fileName = file.name.toLowerCase();
-    const arrayBuffer = await file.arrayBuffer();
 
-    // 1. PDF
-    if (fileName.endsWith('.pdf')) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // 2. Word (.docx)
-    if (fileName.endsWith('.docx')) {
-        if (!window.mammoth) throw new Error("Mammoth kütüphanesi yüklenemedi.");
-        const result = await window.mammoth.convertToHtml({ arrayBuffer });
-        return await renderHtmlToPdf(result.value);
-    }
-
-    // 3. Excel (.xlsx)
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        if (!window.XLSX) throw new Error("SheetJS kütüphanesi yüklenemedi.");
-        const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const firstSheet = workbook.Sheets[firstSheetName];
-        const html = window.XLSX.utils.sheet_to_html(firstSheet);
-        return await renderHtmlToPdf(html);
-    }
-
-    // 4. Image
+    // 1. Image -> PDF (We still convert images because they are easy and good for consistent viewing)
     if (file.type.startsWith('image/')) {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -995,7 +994,6 @@ async function convertFileToPDF(file) {
                     const pdf = new jsPDF();
                     const pageWidth = pdf.internal.pageSize.getWidth();
                     const pageHeight = pdf.internal.pageSize.getHeight();
-                    // Simple fit logic
                     const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
                     const w = img.width * ratio;
                     const h = img.height * ratio;
@@ -1007,7 +1005,8 @@ async function convertFileToPDF(file) {
         });
     }
 
-    throw new Error("Desteklenmeyen dosya formatı.");
+    // 2. Others (PDF, DOCX, XLSX) -> Return null (Signaling "Store Original")
+    return null;
 }
 
 async function renderHtmlToPdf(htmlContent) {
@@ -1111,6 +1110,20 @@ function renderPlans(targetType) {
                 </div>
             `;
             el.querySelector('button').onclick = () => {
+                const isPdf = p.fileName.toLowerCase().endsWith('.pdf');
+
+                // If native (Word/Excel) and NOT PDF, trigger download
+                if (p.isNative && !isPdf) {
+                    const link = document.createElement('a');
+                    link.href = p.fileData;
+                    link.download = p.originalName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    return;
+                }
+
+                // PDF Logic
                 const viewer = document.getElementById('modal-file-viewer');
                 const frame = document.getElementById('viewer-frame');
                 const title = document.getElementById('viewer-title');
@@ -1118,7 +1131,6 @@ function renderPlans(targetType) {
                 title.textContent = p.originalName || p.title;
 
                 try {
-                    // Create Blob URL
                     const byteString = atob(p.fileData.split(',')[1]);
                     const arrayBuffer = new ArrayBuffer(byteString.length);
                     const ia = new Uint8Array(arrayBuffer);
@@ -1130,12 +1142,9 @@ function renderPlans(targetType) {
 
                     frame.src = blobUrl;
                     viewer.classList.add('active');
-
-                    // History state
                     history.pushState({ modal: 'viewer' }, '', '#viewer');
                 } catch (e) {
                     console.error("PDF Açma Hatası", e);
-                    // Fallback to directly setting src if blob fails (less likely but safe)
                     frame.src = p.fileData;
                     viewer.classList.add('active');
                     history.pushState({ modal: 'viewer' }, '', '#viewer');
@@ -1179,11 +1188,14 @@ function setupSettingsLogic() {
 }
 
 function applyTheme(theme) {
-    document.body.classList.remove('theme-green', 'theme-dark');
+    document.body.classList.remove('theme-green', 'theme-dark', 'theme-navy', 'theme-rose');
+
     if (theme === 'green') document.body.classList.add('theme-green');
-    if (theme === 'dark') document.body.classList.add('theme-dark');
-    // 'default' implies no extra class, just base :root variables
-    document.documentElement.setAttribute('data-theme', theme); // Explicit for CSS selectors if needed
+    if (theme === 'navy') document.body.classList.add('theme-navy');
+    if (theme === 'rose') document.body.classList.add('theme-rose');
+
+    // 'default' (Silver Mist) implies no extra class, just base :root variables
+    document.documentElement.setAttribute('data-theme', theme);
 }
 
 function resetAppData() {

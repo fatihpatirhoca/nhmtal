@@ -1,26 +1,27 @@
 :root {
-    --primary-color: #4a90e2;
-    --primary-rgb: 74, 144, 226;
-    --secondary-color: #50e3c2;
-    --bg-color: #f0f2f5;
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    /* DEFAULT THEME: "Silver Mist" - Clean, Professional, High Readability */
+    --primary-color: #2980b9;
+    /* Professional Blue */
+    --primary-rgb: 41, 128, 185;
+    --secondary-color: #6dd5fa;
+    --bg-color: #ebf1f6;
+    --bg-gradient: linear-gradient(135deg, #E0EAFC 0%, #CFDEF3 100%);
 
-    /* NO MORE WHITE - Glass Tint Only */
-    --card-bg: rgba(255, 255, 255, 0.25);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+    /* Light Glass */
+    --card-bg: rgba(255, 255, 255, 0.45);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.6);
 
-    --text-color: #1a1a1a;
-    /* Darker for contrast on glass */
-    --text-muted: #4a4a4a;
+    --text-color: #2c3e50;
+    --text-muted: #576574;
 
-    --border-radius: 16px;
-    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --border-radius: 20px;
+    --shadow: 0 8px 32px 0 rgba(71, 82, 114, 0.1);
     --header-height: 70px;
     --nav-height: 80px;
 
-    /* Input Glass */
-    --input-bg: rgba(255, 255, 255, 0.3);
-    --input-border: 1px solid rgba(255, 255, 255, 0.5);
+    /* Input - Crisp & Clear */
+    --input-bg: rgba(255, 255, 255, 0.6);
+    --input-border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 body.theme-green {
@@ -28,34 +29,64 @@ body.theme-green {
     --primary-rgb: 0, 184, 148;
     --secondary-color: #55efc4;
     --bg-gradient: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
-    --card-bg: rgba(255, 255, 255, 0.2);
+    --card-bg: rgba(255, 255, 255, 0.3);
     --text-color: #054d44;
 }
 
-body.theme-dark {
-    --primary-color: #74b9ff;
-    --primary-rgb: 116, 185, 255;
-    --secondary-color: #0984e3;
-    --bg-color: #1a1a1a;
-    --bg-gradient: linear-gradient(135deg, #2d3436 0%, #000000 74%);
+/* THEME 2: "Royal Navy" - Premium, Dark, Gold Accents */
+body.theme-navy {
+    --primary-color: #FDC830;
+    /* Gold */
+    --primary-rgb: 253, 200, 48;
+    --secondary-color: #F37335;
 
-    /* Dark Glass */
-    --card-bg: rgba(0, 0, 0, 0.4);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --bg-gradient: linear-gradient(135deg, #141E30 0%, #243B55 100%);
 
-    --text-color: #f5f6fa;
-    --text-muted: #dcdde1;
-    --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+    --card-bg: rgba(20, 30, 48, 0.65);
+    /* Dark Blue Glass */
+    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
 
+    --text-color: #eff1f5;
+    --text-muted: #bdc3c7;
+    --shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+
+    /* Dark Input - High Contrast */
     --input-bg: rgba(0, 0, 0, 0.3);
+    /* Dark glass inputs for dark theme */
     --input-border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Clean look */
 }
 
-body.theme-dark .app-header,
-body.theme-dark .bottom-nav {
-    background: rgba(20, 20, 20, 0.6);
-    border-color: rgba(255, 255, 255, 0.05);
+/* THEME 3: "Rose Gold" - Soft, Elegant, Warm */
+body.theme-rose {
+    --primary-color: #89216B;
+    --primary-rgb: 137, 33, 107;
+    --secondary-color: #DA4453;
+
+    --bg-gradient: linear-gradient(135deg, #ffeeee 0%, #ddefbb 100%);
+
+    --card-bg: rgba(255, 255, 255, 0.4);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+
+    --text-color: #4a1c40;
+    --text-muted: #805b75;
+    --shadow: 0 8px 32px rgba(137, 33, 107, 0.15);
+
+    --input-bg: rgba(255, 255, 255, 0.6);
+    --input-border: 1px solid rgba(255, 255, 255, 0.6);
 }
+
+/* Specific Overrides for Navy Theme Navigation/Header */
+body.theme-navy .app-header,
+body.theme-navy .bottom-nav {
+    background: rgba(15, 25, 40, 0.85);
+    /* Darker Navy */
+    border-color: rgba(253, 200, 48, 0.15);
+    /* Subtle Gold Border */
+}
+
+/* Remove forced dark text color to allow theme adaptability */
+/* .form-group input, select, textarea color handled by main declaration */
 
 * {
     box-sizing: border-box;
@@ -116,8 +147,8 @@ button,
 .student-card,
 .class-card {
     background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: var(--glass-border);
     border-radius: 16px;
     padding: 15px;
@@ -133,7 +164,6 @@ button,
 /* Header - Premium Glass */
 .app-header {
     background: var(--card-bg);
-    /* Use shared glass variable */
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     position: sticky;
@@ -143,160 +173,12 @@ button,
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
     z-index: 100;
     border-bottom: var(--glass-border);
 }
 
-.app-header h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-/* Main Content */
-#main-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    padding-bottom: calc(var(--nav-height) + 40px);
-    position: relative;
-    scrollbar-width: none;
-}
-
-#main-content::-webkit-scrollbar {
-    display: none;
-}
-
-/* Views */
-.view {
-    display: none;
-    animation: fadeIn 0.3s ease;
-}
-
-.view.active {
-    display: block;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Empty States */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-    margin-top: 20px;
-}
-
-.empty-state h2 {
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
-
-.empty-state p {
-    color: var(--text-muted);
-}
-
-/* Bottom Navigation */
-/* Bottom Navigation - Premium Glass */
-.bottom-nav {
-    height: var(--nav-height);
-    background: var(--card-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    position: fixed;
-    bottom: 25px;
-    left: 15px;
-    right: 15px;
-    border-radius: 35px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    box-shadow: var(--shadow);
-    z-index: 1000;
-    border: var(--glass-border);
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-.nav-item {
-    background: none;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    cursor: pointer;
-    flex: 1;
-    height: 100%;
-}
-
-.nav-item .icon {
-    font-size: 1.5rem;
-    margin-bottom: 4px;
-    transition: transform 0.2s;
-}
-
-.nav-item.active {
-    color: var(--primary-color);
-}
-
-.nav-item.active .icon {
-    transform: translateY(-2px);
-}
-
-/* Utilities */
-button {
-    cursor: pointer;
-    font-family: inherit;
-}
-
-/* Welcome Screen */
-#view-welcome {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    background: var(--bg-color);
-    z-index: 50;
-    /* Above nav */
-    padding: 20px;
-    display: none;
-    flex-direction: column;
-    overflow-y: auto;
-}
-
-#view-welcome.active {
-    display: flex;
-}
-
-.welcome-header {
-    margin-bottom: 30px;
-    margin-top: 20px;
-}
-
-.welcome-header h2 {
-    font-size: 1.8rem;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
+/* ... existing code ... */
 
 /* Forms */
 .form-group {
@@ -311,111 +193,53 @@ button {
 }
 
 .required {
-    color: red;
+    color: #e74c3c;
 }
 
 input[type="text"],
-select {
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
     width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #ddd;
+    padding: 14px 16px;
+    border: var(--glass-border);
     border-radius: var(--border-radius);
     font-size: 1rem;
-    background: #fff;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    background: var(--input-bg);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-family: inherit;
 }
 
 input[type="text"]:focus,
-select:focus {
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);
     outline: none;
+    background: rgba(255, 255, 255, 0.8);
 }
 
-.btn-primary {
-    width: 100%;
-    padding: 15px;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-top: 10px;
-    box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
-}
-
-.btn-secondary {
-    padding: 10px 20px;
-    background: #eef2f7;
-    color: var(--primary-color);
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 600;
-}
-
-.btn-text {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-weight: 600;
-    padding: 10px;
-    font-size: 1rem;
-}
-
-.btn-danger {
-    background: #e74c3c;
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    padding: 10px 20px;
-    font-weight: 600;
-}
-
-/* Avatar Selector */
-.avatar-selector {
-    display: flex;
-    gap: 15px;
-    margin-top: 10px;
-}
-
-.avatar-option,
-.avatar-upload {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: #eef2f7;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.avatar-option.selected {
-    border-color: var(--primary-color);
-    background: #dbeafe;
-}
-
-.photo-preview-container {
-    margin-top: 15px;
-    text-align: center;
-}
-
-#photo-preview {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--primary-color);
-}
+/* ... existing code ... */
 
 /* Profile Card */
 .profile-card {
-    background: white;
-    border-radius: 16px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: var(--glass-border);
+    border-radius: 24px;
     padding: 30px 20px;
     text-align: center;
     box-shadow: var(--shadow);
@@ -423,72 +247,46 @@ select:focus {
 }
 
 .profile-image-container {
-    width: 100px;
-    height: 100px;
+    width: 110px;
+    height: 110px;
     border-radius: 50%;
-    background: #f0f4f8;
+    background: rgba(255, 255, 255, 0.2);
     margin: 0 auto 15px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    border: 4px solid #fff;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(5px);
 }
 
-.profile-avatar {
-    font-size: 3rem;
-}
-
-#profile-img-display {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.profile-header h2 {
-    font-size: 1.5rem;
-    margin-bottom: 5px;
-}
-
-.profile-header p {
-    color: var(--text-muted);
-    margin-bottom: 20px;
-}
+/* ... existing code ... */
 
 .profile-details {
-    background: #f9fafc;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    /* Very subtle overlay instead of solid */
+    border: var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 25px;
     text-align: left;
 }
 
 .detail-item {
     display: flex;
     justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.detail-item:last-child {
-    border-bottom: none;
-}
-
-.detail-item .label {
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.detail-item .value {
-    font-weight: 600;
-    color: var(--text-color);
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(150, 150, 150, 0.1);
 }
 
 /* Settings List */
 .settings-list {
-    background: white;
-    border-radius: 16px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: var(--glass-border);
+    border-radius: 20px;
     overflow: hidden;
     box-shadow: var(--shadow);
     margin-top: 20px;
@@ -498,209 +296,36 @@ select:focus {
     width: 100%;
     display: flex;
     align-items: center;
-    padding: 15px 20px;
-    background: white;
+    padding: 18px 25px;
+    background: transparent;
+    /* Transparent to show list glass bg */
     border: none;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid rgba(150, 150, 150, 0.1);
     text-align: left;
     transition: background 0.2s;
+    color: var(--text-color);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
 }
 
 .settings-item:active {
-    background: #f5f5f5;
+    background: rgba(0, 0, 0, 0.05);
 }
 
-.settings-item .icon {
-    font-size: 1.2rem;
-    margin-right: 15px;
-    width: 24px;
-    text-align: center;
-}
-
-.settings-item .text {
-    flex: 1;
-    font-size: 1rem;
-}
-
-.settings-item .arrow {
-    color: #ccc;
-    font-size: 1.2rem;
-}
-
-.settings-item.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-/* Modal Base */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-}
-
-.modal-overlay.active {
-    display: flex;
-}
-
-.modal-content {
-    background: var(--card-bg);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    width: 95%;
-    max-width: 440px;
-    border-radius: 32px;
-    padding: 35px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    animation: modalIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    animation: modalIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    overflow-y: auto;
-    max-height: 80vh;
-    /* Prevent overlap with bottom nav */
-}
-
-@keyframes modalIn {
-    from {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-.modal-content h3 {
-    margin-bottom: 15px;
-    font-size: 1.25rem;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 25px;
-    justify-content: flex-end;
-}
-
-.modal-actions button {
-    flex: 1;
-    min-height: 48px;
-}
-
-body.theme-dark .modal-content {
-    background: rgba(0, 0, 0, 0.65);
-    /* Dark Glass */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
-body.theme-dark .btn-text {
-    color: #bbb;
-}
-
-/* Modal Large */
-.modal-content.modal-large {
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-/* Expanded Form Inputs */
-/* Expanded Form Inputs - Glass Edition */
-.form-group input,
-.form-group select,
-.form-group textarea {
-    width: 100%;
-    padding: 14px;
-    border: var(--input-border);
-    border-radius: 12px;
-    font-size: 1.05rem;
-    outline: none;
-    transition: all 0.2s;
-    background: var(--input-bg);
-    color: var(--text-color);
-    font-family: inherit;
-    backdrop-filter: blur(5px);
-}
-
-/* Fix Placeholder Colors for Glass */
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-    color: var(--text-muted);
-    opacity: 0.7;
-}
-
-.form-group textarea {
-    min-height: 100px;
-    resize: vertical;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-    border-color: var(--primary-color);
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
-}
-
-.form-row {
-    display: flex;
-    gap: 15px;
-}
-
-.form-row .form-group {
-    flex: 1;
-}
-
-.centered {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-/* Sub Header */
-.sub-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-}
-
-.btn-back {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    padding: 5px 10px;
-    color: var(--primary-color);
-}
-
-.btn-icon {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
-    color: var(--primary-color);
-}
+/* ... existing code ... */
 
 .search-input {
     width: 100%;
-    padding: 10px 15px;
-    border-radius: 20px;
-    border: 1px solid #ddd;
-    background: #f9f9f9;
+    padding: 12px 20px;
+    border-radius: 25px;
+    border: var(--glass-border);
+    background: var(--input-bg);
     margin-bottom: 15px;
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.03);
+    color: var(--text-color);
 }
 
 /* Student List */
@@ -711,20 +336,29 @@ body.theme-dark .btn-text {
 }
 
 .student-card {
-    background: white;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border: var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
     gap: 15px;
     cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.student-card:active {
+    transform: scale(0.98);
 }
 
 .student-list-avatar {
     width: 40px;
     height: 40px;
-    background: #eef2f7;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -806,7 +440,8 @@ body.theme-dark .btn-text {
     padding: 4px 10px;
     border-radius: 12px;
     font-size: 0.8rem;
-    background: #eee;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: #333;
     font-weight: 500;
 }
@@ -814,9 +449,12 @@ body.theme-dark .btn-text {
 /* Tabs */
 .student-profile-tabs {
     display: flex;
-    background: white;
-    border-radius: 12px;
-    padding: 5px;
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: var(--glass-border);
+    border-radius: 16px;
+    padding: 6px;
     margin-bottom: 20px;
     box-shadow: var(--shadow);
 }
@@ -965,7 +603,9 @@ body.theme-dark .btn-text {
 }
 
 .timeline-content {
-    background: #f9f9f9;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
     padding: 10px;
     border-radius: 8px;
     font-size: 0.95rem;
@@ -1014,10 +654,13 @@ body.theme-dark .btn-text {
 }
 
 .exam-item {
-    background: white;
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: var(--glass-border);
     padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1057,8 +700,9 @@ body.theme-dark .btn-text {
 .fab-btn-mini {
     width: 100%;
     padding: 12px;
-    background: white;
-    border: 2px solid var(--primary-color);
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--primary-color);
     color: var(--primary-color);
     border-radius: 25px;
     font-weight: 600;
