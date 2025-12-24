@@ -543,7 +543,13 @@
             <h3 id="modal-student-title">Öğrenci Ekle</h3>
             <form id="form-student">
                 <input type="hidden" id="student-id">
-                <input type="hidden" id="student-class-id">
+
+                <div class="form-group">
+                    <label>Sınıf <span class="required">*</span></label>
+                    <select id="student-class-id" required>
+                        <option value="">Sınıf Seçiniz</option>
+                    </select>
+                </div>
 
                 <!-- Photo -->
                 <div class="form-group photo-section centered">
@@ -769,6 +775,5 @@
 
     <script src="app.js?v=18"></script>
 </body>
-
 
 </html>

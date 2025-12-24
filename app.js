@@ -537,6 +537,13 @@ async function processImport() {
                     number: s.number,
                     name: s.name,
                     classId: activeClassId,
+                    parents: {
+                        mother: { name: '', tel: '' },
+                        father: { name: '', tel: '' }
+                    },
+                    notes: '',
+                    exams: [],
+                    teacherNotes: [],
                     status: 'active',
                     updatedAt: new Date()
                 };
@@ -621,15 +628,17 @@ function setupStudentLogic() {
     const modal = document.getElementById('modal-student');
     const form = document.getElementById('form-student');
 
-    btnAdd.addEventListener('click', () => {
+    btnAdd.addEventListener('click', async () => {
         form.reset();
         document.getElementById('student-id').value = '';
         document.getElementById('modal-student-title').textContent = 'Öğrenci Ekle';
-        document.getElementById('student-class-id').value = currentClassId;
+
+        await populateClassSelect();
+        document.getElementById('student-class-id').value = currentClassId || "";
+
         document.getElementById('student-form-img').style.display = 'none';
         document.getElementById('student-form-avatar').style.display = 'block';
         document.getElementById('btn-delete-student').style.display = 'none'; // Hide delete
-        document.querySelectorAll('#student-tags .chip').forEach(c => c.classList.remove('selected'));
         modal.classList.add('active');
     });
 
@@ -676,13 +685,17 @@ function setupStudentLogic() {
         }
     });
 
-    document.getElementById('btn-edit-student').addEventListener('click', () => {
+    document.getElementById('btn-edit-student').addEventListener('click', async () => {
         const tx = db.transaction(['students'], 'readonly');
-        tx.objectStore('students').get(currentStudentId).onsuccess = (e) => {
+        tx.objectStore('students').get(currentStudentId).onsuccess = async (e) => {
             const s = e.target.result;
+
+            await populateClassSelect();
+
             document.getElementById('student-id').value = s.id;
             document.getElementById('student-name').value = s.name;
             document.getElementById('student-number').value = s.number;
+            document.getElementById('student-class-id').value = s.classId || "";
             document.getElementById('student-mother-name').value = s.parents?.mother?.name || '';
             document.getElementById('student-mother-tel').value = s.parents?.mother?.tel || '';
             document.getElementById('student-father-name').value = s.parents?.father?.name || '';
@@ -693,12 +706,10 @@ function setupStudentLogic() {
                 document.getElementById('student-form-img').src = s.photo;
                 document.getElementById('student-form-img').style.display = 'block';
                 document.getElementById('student-form-avatar').style.display = 'none';
+            } else {
+                document.getElementById('student-form-img').style.display = 'none';
+                document.getElementById('student-form-avatar').style.display = 'block';
             }
-
-            document.querySelectorAll('#student-tags .chip').forEach(chip => {
-                if (s.tags && s.tags.includes(chip.getAttribute('data-value'))) chip.classList.add('selected');
-                else chip.classList.remove('selected');
-            });
 
             modal.classList.add('active');
             document.getElementById('btn-delete-student').style.display = 'block'; // Show delete
@@ -713,6 +724,25 @@ function setupStudentLogic() {
     };
 }
 
+async function populateClassSelect() {
+    const select = document.getElementById('student-class-id');
+    select.innerHTML = '<option value="">Sınıf Seçiniz</option>';
+
+    return new Promise(resolve => {
+        const tx = db.transaction(['classes'], 'readonly');
+        tx.objectStore('classes').getAll().onsuccess = (e) => {
+            const classes = e.target.result;
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+            resolve();
+        };
+    });
+}
+
 // Consolidated saveStudent and removed duplicates
 function saveStudent() {
     const id = document.getElementById('student-id').value;
@@ -724,16 +754,12 @@ function saveStudent() {
     const photoImg = document.getElementById('student-form-img');
     const photo = (photoImg.style.display === 'block') ? photoImg.src : null;
 
-    // Tags
-    const tags = [];
-    document.querySelectorAll('#student-tags .chip.selected').forEach(c => tags.push(c.getAttribute('data-value')));
-
     const studentData = {
         number,
         name,
         classId,
         photo,
-        tags,
+        tags: [], // Tags logic simplified
         parents: {
             mother: {
                 name: document.getElementById('student-mother-name').value,
@@ -748,6 +774,11 @@ function saveStudent() {
         status: 'active',
         updatedAt: new Date()
     };
+
+    if (!classId) {
+        alert("Lütfen bir sınıf seçin!");
+        return;
+    }
 
     if (id) {
         studentData.id = Number(id);
@@ -810,62 +841,71 @@ function renderStudents(classId) {
     };
 }
 
+function deleteStudent(id) {
+    const tx = db.transaction(['students'], 'readwrite');
+    tx.objectStore('students').delete(id).onsuccess = () => {
+        document.getElementById('modal-student').classList.remove('active');
+        if (currentClassId) renderStudents(currentClassId);
+        renderAllStudents();
+        navigate('view-classes', 'Sınıflar');
+    };
+}
+
 function loadStudentProfile(studentId, readOnly = false) {
     currentStudentId = studentId;
-    const tx = db.transaction(['students'], 'readonly');
+    const tx = db.transaction(['students', 'classes'], 'readonly');
     tx.objectStore('students').get(studentId).onsuccess = (e) => {
         const s = e.target.result;
-        document.getElementById('std-profile-name').textContent = s.name;
-        document.getElementById('std-profile-no').textContent = 'Öğrenci No: ' + s.number;
 
-        const avatarDisp = document.getElementById('std-profile-avatar');
-        const imgDisp = document.getElementById('std-profile-img');
-        if (s.photo) {
-            imgDisp.src = s.photo;
-            imgDisp.style.display = 'block';
-            avatarDisp.style.display = 'none';
-        } else {
-            avatarDisp.style.display = 'block';
-            imgDisp.style.display = 'none';
-        }
+        // Fetch Class Name
+        tx.objectStore('classes').get(s.classId).onsuccess = (ce) => {
+            const classData = ce.target.result;
+            const className = classData ? classData.name : 'Bilinmiyor';
 
-        // Tags
-        const tagCont = document.getElementById('std-profile-tags');
-        tagCont.innerHTML = '';
-        if (s.tags) {
-            s.tags.forEach(t => {
-                const span = document.createElement('span');
-                span.className = 'tag-badge';
-                span.textContent = t;
-                tagCont.appendChild(span);
-            });
-        }
+            document.getElementById('std-profile-name').textContent = s.name;
+            document.getElementById('std-profile-no').textContent = 'No: ' + s.number + ' | Sınıf: ' + className;
 
-        document.getElementById('std-mother-name').textContent = s.parents?.mother?.name || '-';
-        document.getElementById('std-father-name').textContent = s.parents?.father?.name || '-';
+            const avatarDisp = document.getElementById('std-profile-avatar');
+            const imgDisp = document.getElementById('std-profile-img');
+            if (s.photo) {
+                imgDisp.src = s.photo;
+                imgDisp.style.display = 'block';
+                avatarDisp.style.display = 'none';
+            } else {
+                avatarDisp.style.display = 'block';
+                imgDisp.style.display = 'none';
+            }
 
-        const mActions = document.getElementById('actions-mother');
-        mActions.innerHTML = '';
-        if (s.parents?.mother?.tel) {
-            mActions.innerHTML = `<a href="tel:${s.parents.mother.tel}" class="btn-action call">📞</a> <a href="sms:${s.parents.mother.tel}" class="btn-action msg">💬</a>`;
-        }
+            // Tags (simplified)
+            const tagCont = document.getElementById('std-profile-tags');
+            tagCont.innerHTML = '';
 
-        const fActions = document.getElementById('actions-father');
-        fActions.innerHTML = '';
-        if (s.parents?.father?.tel) {
-            fActions.innerHTML = `<a href="tel:${s.parents.father.tel}" class="btn-action call">📞</a> <a href="sms:${s.parents.father.tel}" class="btn-action msg">💬</a>`;
-        }
+            document.getElementById('std-mother-name').textContent = s.parents?.mother?.name || '-';
+            document.getElementById('std-father-name').textContent = s.parents?.father?.name || '-';
 
-        document.getElementById('std-general-notes').textContent = s.notes || 'Not yok.';
+            const mActions = document.getElementById('actions-mother');
+            mActions.innerHTML = '';
+            if (s.parents?.mother?.tel) {
+                mActions.innerHTML = `<a href="tel:${s.parents.mother.tel}" class="btn-action call">📞</a> <a href="sms:${s.parents.mother.tel}" class="btn-action msg">💬</a>`;
+            }
 
-        renderNotes(s.teacherNotes, readOnly);
-        renderExams(s.exams, readOnly);
-        navigate('view-student-profile');
+            const fActions = document.getElementById('actions-father');
+            fActions.innerHTML = '';
+            if (s.parents?.father?.tel) {
+                fActions.innerHTML = `<a href="tel:${s.parents.father.tel}" class="btn-action call">📞</a> <a href="sms:${s.parents.father.tel}" class="btn-action msg">💬</a>`;
+            }
 
-        // Toggle add buttons based on readOnly
-        document.getElementById('btn-add-note').style.display = readOnly ? 'none' : 'flex';
-        document.getElementById('btn-add-exam').style.display = readOnly ? 'none' : 'flex';
-        document.getElementById('btn-edit-student').style.display = readOnly ? 'none' : 'block';
+            document.getElementById('std-general-notes').textContent = s.notes || 'Not yok.';
+
+            renderNotes(s.teacherNotes, readOnly);
+            renderExams(s.exams, readOnly);
+            navigate('view-student-profile');
+
+            // Toggle add buttons based on readOnly
+            document.getElementById('btn-add-note').style.display = readOnly ? 'none' : 'flex';
+            document.getElementById('btn-add-exam').style.display = readOnly ? 'none' : 'flex';
+            document.getElementById('btn-edit-student').style.display = readOnly ? 'none' : 'block';
+        };
     };
 }
 
@@ -874,29 +914,36 @@ function renderAllStudents() {
     if (!list) return;
     list.innerHTML = '';
 
-    const tx = db.transaction(['students'], 'readonly');
-    tx.objectStore('students').getAll().onsuccess = (e) => {
-        const students = e.target.result.filter(s => s.status !== 'graduated'); // Only active students
-        if (students.length === 0) {
-            list.innerHTML = '<div class="empty-state"><p>Henüz kayıtlı öğrenci yok.</p></div>';
-            return;
-        }
+    const cTx = db.transaction(['classes'], 'readonly');
+    cTx.objectStore('classes').getAll().onsuccess = (ce) => {
+        const classes = ce.target.result;
+        const classMap = {};
+        classes.forEach(c => classMap[c.id] = c.name);
 
-        students.forEach(s => {
-            const card = document.createElement('div');
-            card.className = 'student-card global-student-card';
-            card.setAttribute('data-name', s.name.toLowerCase());
-            let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
-            card.innerHTML = `
-                ${avatar}
-                <div class="student-info">
-                    <h4>${s.name}</h4>
-                    <p>No: ${s.number}</p>
-                </div>
-            `;
-            card.onclick = () => loadStudentProfile(s.id);
-            list.appendChild(card);
-        });
+        const tx = db.transaction(['students'], 'readonly');
+        tx.objectStore('students').getAll().onsuccess = (e) => {
+            const students = e.target.result.filter(s => s.status !== 'graduated'); // Only active students
+            if (students.length === 0) {
+                list.innerHTML = '<div class="empty-state"><p>Henüz kayıtlı öğrenci yok.</p></div>';
+                return;
+            }
+
+            students.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'student-card global-student-card';
+                card.setAttribute('data-name', s.name.toLowerCase());
+                let avatar = s.photo ? `<img src="${s.photo}" class="student-list-img">` : `<div class="student-list-avatar">🎓</div>`;
+                card.innerHTML = `
+                    ${avatar}
+                    <div class="student-info">
+                        <h4>${s.name}</h4>
+                        <p>No: ${s.number} | Sınıf: ${classMap[s.classId] || 'Bilinmiyor'}</p>
+                    </div>
+                `;
+                card.onclick = () => loadStudentProfile(s.id);
+                list.appendChild(card);
+            });
+        };
     };
 }
 
